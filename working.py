@@ -1,16 +1,17 @@
 # coding: utf-8
-from AST1100SolarSystem import AST1100SolarSystem
+from MySolarSystem import MySolarSystem
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-def simulate(seed, System, years = 8,planet_index = 0, units='au'):
+def simulate(seed, System, years = 8,planet_index = 0, units='au'
+        , res = 10000):
     au =  149597870700          #m
     sec_in_year = 365 * 24 * 3600      #s
     G = 6.67408e-11 
     solar_mass = 1.98855e30     #kg
-    n = 10000 *years
+    n = res *years
     stop = years * sec_in_year 
     dt = stop/n+1
 
@@ -21,7 +22,6 @@ def simulate(seed, System, years = 8,planet_index = 0, units='au'):
     y0 = System.y0 * au
     vx0 = System.vx0 * au / sec_in_year
     vy0 = System.vy0 * au / sec_in_year
-
 
     times = np.linspace(0,stop,n)
     pos = np.zeros((n+1, 2))
@@ -49,6 +49,19 @@ def simulate(seed, System, years = 8,planet_index = 0, units='au'):
     else:
         return pos
 
+def sim2(seed, System, years = 8, planet_index = "", res = 10000):
+    G = 4*np.pi**2
+    n = res*years
+    stop = years
+    dt = stop/n+1
+
+    starMass = System.starMass
+    mass = System.mass
+
+
+
+
+
 def planet_plotter(positions, years, fig=None, ax = None):
     if not ax:
         fig, ax = plt.subplots()
@@ -62,16 +75,19 @@ def planet_plotter(positions, years, fig=None, ax = None):
 
 if __name__ == "__main__":
     seed = 87464
-    MyStarSystem = AST1100SolarSystem(seed) 
-    years = 30
+    MyStarSystem = MySolarSystem(seed) 
+    years = 10
     fig, ax = plt.subplots()
     ax.scatter(0,0, c='y')
+
     for x in range(MyStarSystem.numberOfPlanets):
         print x
-        positions = simulate(seed, MyStarSystem, planet_index = x,years=years)
+        positions = simulate(seed, MyStarSystem, planet_index = x
+                ,years=years, res = 5000)
         fig, ax = planet_plotter(positions, years, fig, ax)
 
     plt.axis('equal')
     plot_max = max(MyStarSystem.a +1)
     plt.axis([-plot_max,plot_max,-plot_max,plot_max])
+    ax = MyStarSystem.polar_orbits(ax =ax)
     plt.show()
