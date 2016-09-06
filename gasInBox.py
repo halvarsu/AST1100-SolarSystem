@@ -4,7 +4,7 @@ from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
 
 
-N = 10000
+N = 100000
 k = 1.38864852e-23
 m = 2*1.6737236e-27
 T = 10000 # K
@@ -48,6 +48,7 @@ lower_wall_hit_count = 0
 gained_momentum = 0
 hit_hole = 0
 
+accurate = False
 for t in xrange(n):
     percent = t/float(n)*100
     status = "%2.2f%%"  % percent
@@ -76,7 +77,6 @@ for t in xrange(n):
     outside_count += hole_hit
     gained_momentum += np.sum(np.abs(vel.T[2][xyz_mask])) * m
 
-    accurate = False
     if accurate:
         pos = np.random.uniform(0,box_size,(N, 3)) 
         vel = np.random.normal(mu,sigma,(N, 3)) 
@@ -147,7 +147,7 @@ print "    Relative diff:              ",\
                     abs(kinetic_comp - kinetic_calc)/kinetic_comp
 print "--------------------------------------"
 
-plot = 0
+plot = 1
 if plot:
     fig= plt.figure()
     num_bins = 50
