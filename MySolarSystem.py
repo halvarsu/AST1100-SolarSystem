@@ -79,95 +79,31 @@ class MySolarSystem(AST1100SolarSystem):
         self.saveData(times, pos, vel, accel)
         return pos, accel, times
 
-    def simulate_nbody(self, years = 8, planet_index = "", res = 5000):
-        self.G = 4*np.pi**2
-        n = res*years
-        numOfBodies = self.numberOfPlanets + 1
-        stop = years
-        dt = stop/float(n+1)
 
-
-        times = np.linspace(0,stop,n+1)
-        pos = np.zeros((n+1,2,numOfBodies))
-        vel = np.zeros_like(pos)
-        accel = np.zeros_like(pos)
-
-        self.star_velocity_init()
-        mass_array = np.append(self.mass,self.starMass)
-        x0 = np.append(self.x0, self.star_x0)
-        y0 = np.append(self.y0, self.star_y0)
-        vx0 = np.append(self.vx0, self.star_vx0)
-        vy0 = np.append(self.vy0, self.star_vy0)
-        
-        pos[0] = np.array((x0, y0))
-        vel[0] = np.array((vx0, vy0))
-
-        accel[0] = self.accel_nbody(pos[0], mass_array)
-        print "Simulating %d years in %d timesteps"%(years, n)
-
-        for i in xrange(n):
-            if i%(n/100) == 0:
-                print 100*i/float(n)
-            pos[i+1] = pos[i] + vel[i]*dt + accel[i]*dt**2
-            accel[i+1] = self.accel_nbody(pos[i+1], mass_array)
-            vel[i+1] = vel[i] + 0.5*(accel[i]+accel[i+1])*dt
-        self.saveData(times, pos, vel, accel)
-        return pos, accel, times
-
-    def star_velocity_init(self):
-        """ 
-        Sets the velocity of the star so it matches the movement of the
-        planets (ensures a stationary center of mass for nbody-sim).
-        """
-        starMass = self.starMass
-        masses = self.mass
-        self.star_vx0 = 0
-        self.star_vy0 = 0
-        self.star_x0 = 0
-        self.star_y0 = 0
-
-        for i in range(self.numberOfPlanets):
-            self.star_vx0 -= self.vx0[i]*masses[i]/starMass
-            self.star_vy0 -= self.vy0[i]*masses[i]/starMass
-            self.star_x0 -=  self.x0[i]*masses[i]/starMass
-            self.star_y0 -=  self.y0[i]*masses[i]/starMass
-
-
-    def accel_nbody(self,pos,mass):
-        """Used in simulate_nbody to find the acceleration of all the
-        bodies on eachother"""
-        N = len(mass)
-        f_array = np.zeros((N,2))
-        for i in range(N-1):
-            for j in range(i+1,N):
-                r_vec = pos[:,i] - pos[:,j]
-                r = np.linalg.norm(r_vec)
-                f = - self.G * mass[i]*mass[j] *r_vec/r**3
-                f_array[i] += f
-                f_array[j] -= f
-        return (f_array.T/mass)
-     
-
-    def saveData(self, times, pos, vel, accel):
+    def saveData(self, times, pos, vel=None, accel=None):
         np.save('data/timesData', times)
         np.save('data/positionsData', pos)
         np.save('data/velocityData', vel)
         np.save('data/accelerationData', accel)
 
     def analytical_pos(self, planets= '', res = 1000, xy = False):
+        # If no index supplied, uses all planets
         if not planets:
             indexes = range(self.numberOfPlanets)
+        # If index is int, check if valid int
+        elif type(planets) == int and planets <= self.numberOfPlanets:
+            indexes = str(planets)
         else:
             indexes = planets.split(',')
-            indexes = [int(i) for i in indexes]
-            
-        print 'Finding analytical solution for these planets:',indexes
+            indexes = np.array([int(i) for i in indexes])
 
         orbits = np.zeros((res, len(indexes)))
         theta = np.linspace(0,2*np.pi,res)
-        for i in indexes:
-            a = self.a[i]
-            e = self.e[i]
+        a_arr = self.a[indexes]
+        e_arr = self.e[indexes]
+        for i in range(len(indexes)):
+            a = a_arr[i]
+            e = e_arr[i]
             f = theta - self.psi[i]
             for j in range(res):
                 orbits[j][i] = a*(1-e**2)/(1-e*np.cos(f[j]))
@@ -205,6 +141,93 @@ class MySolarSystem(AST1100SolarSystem):
         else:
             return ax
 
+    def getExactPos(self):
+        if not hasattr(self, 'exactPos'):
+            exactPos = np.load('positionsHomePlanet.npy')
+            self.exactPos = exactPos
+            return self.exactPos
+        return self.exactPos
+
+    def getTimes(self):
+        if not hasattr(self,'times'):
+            times = np.load('times.npy')
+            self.times = times
+            return self.times
+        return self.times
+
+    def getTheta(self):
+        if not hasattr(self, 'theta') or not hasattr(self,'orbits_r'):
+            self.theta, self.orbits_r = self.analytical_pos()
+        return self.theta, self.orbits_r
+
+    def getPositionsFunction(self, planets = '', xy = False):
+        '''  posFunction returns positions as function of time.'''
+        if not hasattr(self, 'posFunction'):
+            from scipy.interpolate import interp1d
+            #from scipy.interpolate import UnivariateSpline
+            planetPos   = self.getExactPos()
+            times    = self.getTimes()
+            self.posFunction = interp1d(times[:-1], planetPos)
+            #self.posFunction = UnivariateSpline(times[:-1], planetPos)
+        return self.posFunction 
+
+    def getAngleFunction(self):
+        '''angleFunction returns positions as function of theta'''
+        if not hasattr(self, 'angleFunction'):
+            from scipy.interpolate import interp1d
+            theta, orbits_r = self.getTheta()
+            angleFunction = interp1d(theta, orbits_r.T)
+        return angleFunction
+
+    def velFunction(self,t,dt = 0.000001):
+        return (self.posFunction(t+dt) - self.posFunction(t))/dt
+
+    def getVelocityFunction(self):
+        if not hasattr(self, 'posFunction'):
+            self.getPositionsFunction()
+        if not hasattr(self, 'velFunction'):
+            print "Something is wrong, velFunction not implemented!"
+        return self.velFunction
+
+
+    def find_hohmann_params(self, A=0, B=1):
+        '''returns parameters of the hohmann transfer from planet A to planet B
+        for an approximation of planet orbits as circles
+        
+        : A, B : : Expects B > A
+        '''
+        pi = np.pi
+        posFunction, angleFunction = self.find_functions("%d, %d" %(A,B))
+        n = 10
+        r = np.zeros((n,2))
+        for i,thet in enumerate(np.linspace(0,2*pi, n)):
+            r[i] = angleFunction(thet)
+
+        rA = np.mean(r, axis = 0)[0]
+        rB = np.mean(r, axis = 0)[1]
+
+        aTransfer = (rA+rB)/2.
+        G = 4*pi**2
+        M = self.starMass
+        v_init_A        = np.sqrt(G*M/rA)
+        v_final_B       = np.sqrt(G*M/rB)
+        v_transfer_A    = np.sqrt(G*M*(2./rA - 1./aTransfer))
+        v_transfer_B    = np.sqrt(G*M*(2./rB - 1./aTransfer))
+        delta_VA        = v_transfer_A - v_init_A
+        delta_VB        = v_final_B - v_transfer_B
+        total_delta_V   = delta_VA + delta_VB
+        e               = 1 -     rA/aTransfer #eccentrisity of transfer ellipse
+        transferTime    = pi*np.sqrt((rA+rB)**3/(8*G*M))
+
+        return {"v_init_A": v_init_A, 
+                "v_final_B": v_final_B, 
+                "total_delta_V":total_delta_V, 
+                "e":e, 
+                "transferTime":transferTime,
+                "v_transfer_A":v_transfer_A,
+                "v_transfer_B":v_transfer_B}
+        
+        
 
 
         
