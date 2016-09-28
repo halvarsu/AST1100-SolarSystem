@@ -1,3 +1,11 @@
+"""
+File: orient.py
+Author: Halvard Sutterud
+Email: halvard.sutterud@gmail.com
+Github: https://github.com/halvarsu
+Description: Given distance to planets with known positions, finds position
+of satelite
+"""
 
 import numpy as np
 time = 0
