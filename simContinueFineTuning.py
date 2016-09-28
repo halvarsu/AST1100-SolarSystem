@@ -1,3 +1,12 @@
+"""
+File: simContinueFineTuning.py
+Author: Halvard Sutterud
+Email: halvard.sutterud@gmail.com
+Github: https://github.com/halvarsu
+Description: Used for finding the leg from gravity assist planet to target
+planet, with different values for boost
+"""
+
 from MySateliteSim import MySateliteSim
 import numpy as np
 import matplotlib.pyplot as plt
