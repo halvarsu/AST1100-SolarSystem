@@ -1,0 +1,17 @@
+--------------------------------------
+    Number of particles:  100000
+    Temperature: 10000 K
+    k:   1.38864852e-23
+--------------------------------------
+    Momentum in negative z-direction:  1.39066222412e-17
+    Force on lower wall :  1.39066222412e-08
+    Hitting lower wall:  257441
+    Escaping:  63997
+    Upward force:  1.72884876398e-09
+    l_f/(4*u_f) =  2.01096569737
+--------------------------------------
+    Computed kinetic energy:     2.09149667471e-19
+    Computed after sim:          2.08622060712e-19
+    Calculated kinetic energy:   2.08297278e-19
+    Relative diff:               0.00407550000819
+--------------------------------------

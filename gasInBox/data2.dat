@@ -1,0 +1,25 @@
+--------------------------------------
+    Number of particles:  100000
+    Temperature: 10000 K
+    k:   1.38864852e-23
+--------------------------------------
+    Momentum lower wall:         1.39066222412e-17
+    Force on lower wall:         1.39066222412e-08
+    Hitting lower wall:          257441
+    Escaping:                    63997
+    Upward force per box :       1.72885e-09 N
+--------------------------------------
+    Boxes needed for 914000N:    5.28676e+14
+    area needed for  914000N:    132.169
+    sides of area:               11.4965
+--------------------------------------
+    Weight of satelite:          1190
+    fuel use total:              1.13256e-07 kg
+--------------------------------------
+    Fuel use per sec for914000N: 113.256 kg/s
+--------------------------------------
+    Computed kinetic energy:     2.09149667471e-19
+    Computed after sim:          2.08622060712e-19
+    Calculated kinetic energy:   2.08297278e-19
+    Relative diff:               0.00407550000819
+--------------------------------------
