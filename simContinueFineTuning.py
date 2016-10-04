@@ -65,28 +65,42 @@ print "distance from surface at closest approach: ", hCl
 print "relpos at closest approach", relposCl
 print "angle at closest approach", aCl
 
-boost_v = 2000
+close_list = []
+for x in range(5):
+    boost_v = 1990 - 10*x
 
-boost_a = 1.07*np.pi/4
-vel0 = boost(vCl, boost_v, boost_a)
-pos0 = pCl 
-sim_length = 6.2
-close_speed_factor = 1
+    boost_a = 1.075*np.pi/4
+    vel0 = boost(vCl, boost_v, boost_a)
+    pos0 = pCl 
+    sim_length = 6.2
+    close_speed_factor = 2
 
-# 0.336138702386  b1000 a1.06pi/4 lv 9594
-# 0.0596081065397 b2000
-# 0.00503893068436 a1.07pi/4
-# 0.0268986034289 a1.065pi/4 v0.629758507124 
+    # 0.336138702386  b1000 a1.06pi/4 lv 9594
+    # 0.0596081065397 b2000
+    # 0.00503893068436 a1.07pi/4
+    # 0.0268986034289 a1.065pi/4 v0.629758507124 
 
+    #Trying with larger dt, want to find better boost angle
 
-dt_far = 1/(50000.)
-print "---------------------------------------------"
-print "continuing the launch ", launch_v
-psim, vsim, asim, tsim = system.satelite_sim(t0 = tCl, 
-        tN = tCl+sim_length, start_planet=4, target_planet =5,
-        vel0 = vel0, pos0 = pos0, first_boost = False,
-        dt_far=dt_far, sec_per_dt_close = close_speed_factor)
-filenames = ['%sv%db%d' %(name,launch_v,boost_v) for name in ('pos','vel','times')]
-system.saveData(fname = filenames, folder = 'postGAdata')
-system.plot()
+    dt_far = 1/(50000.)
+    print "---------------------------------------------"
+    print "continuing the launch ", launch_v
+    psim, vsim, asim, tsim = system.satelite_sim(t0 = tCl, 
+            tN = tCl+sim_length, start_planet=4, target_planet =5,
+            vel0 = vel0, pos0 = pos0, first_boost = False,
+            dt_far=dt_far, sec_per_dt_close = close_speed_factor)
+    save = True
+    if close_speed_factor > 1:
+        if False: #raw_input("Sure you want to save?(y/N)") == 'y':
+            save = True
+        else:
+            save = False
+    if save:
+        filenames = ['%sv%db%d' %(name,launch_v,boost_v) for name in ('pos','vel','times')]
+        system.saveData(fname = filenames, folder = 'postGAdata')
+    close_list.append(system.plot())
 
+print close_list
+rang = [1990 - 10*x for x in range(5)]
+plt.scatter(close_list, rang)
+plt.show()
