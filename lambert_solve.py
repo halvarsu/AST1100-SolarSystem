@@ -10,16 +10,25 @@ import matplotlib.pyplot as plt
 
 
 system = MySateliteSim(87464)
-def init_planet(planet):
+def init_planet(system, planet=0, name = 'home'):
+    a,e,i,W,w,M = system.getKeplerianElements(new_values = True).T[planet]
+    mu_star = system.starMass * MU_SUN
+    mu_planet = system.mass[planet] * MU_SUN 
+    radius = system.radius[planet] * 1000
+    safe_radius = radius + 100000
+    return pkp.planet.keplerian(epoch(0), np.array((a*AU, e, i,
+            W, w, M)), mu_star, mu_planet, radius, safe_radius,name)
+
+def init_planet_old(planet):
     x0 = system.x0[planet]
     y0 = system.y0[planet] 
     e = system.e[planet]
     a = system.a[planet]
     b = a*np.sqrt(1-e**2)
-    M = np.arctan((y0*a)/(x0*b)) - e*y0/b
+    M = np.arctan((y0*a)/(x0*b)) - e*y0/b + np.pi
     i = 0.0
     W = 0.0
-    w = system.psi[planet]
+    w = system.psi[planet]  + np.pi
     mu_star = system.starMass * MU_SUN
     mu_planet = system.mass[planet] * MU_SUN 
     radius = system.radius[planet] * 1000
@@ -27,13 +36,13 @@ def init_planet(planet):
     return pkp.planet.keplerian(epoch(0), np.array((a*AU, e, i,
             W, w, M)), mu_star, mu_planet, radius, safe_radius, 'home')
 
-def lambert_solve(t1,t2,A,B):
+def lambert_solve(t1,t2,A,B, nameA='herbin', nameB='hars'):
     t1 = epoch(t1/DAY2YEAR)
     t2 = epoch(t2/DAY2YEAR)
     dt = (t2.mjd2000 - t1.mjd2000)*DAY2SEC
 
-    planet1 = init_planet(A)
-    planet2 = init_planet(B)
+    planet1 = init_planet(system,A, name = nameA)
+    planet2 = init_planet(system,B, name = nameB)
 
     r1, v1 = planet1.eph(t1)
     r2, v2 = planet2.eph(t2)
@@ -53,9 +62,9 @@ def lambert_plot(t1,t2, A, B):
     t2 = epoch(t2/DAY2YEAR)
     dt = (t2.mjd2000 - t1.mjd2000)*DAY2SEC
 
-    planet1 = init_planet(A)
+    planet1 = init_planet(system, A)
     plot_planet(planet1, t0=t1, legend=True, units = AU, ax = axis)
-    planet4 = init_planet(B)
+    planet4 = init_planet(system, B)
     plot_planet(planet4, t0=t2, legend=True, units = AU, ax = axis)
 
     rH, vH = planet1.eph(t1)

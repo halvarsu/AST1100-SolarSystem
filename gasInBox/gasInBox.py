@@ -6,14 +6,14 @@ import matplotlib.pyplot as plt
 
 N = 100000
 k = 1.38864852e-23
-m = 2*1.6737236e-27
+m = 2*1.6737236e-27 # two times mass of one H-atom
 T = 10000 # K
 
 
 sat_mass = 1190 #kg
 mu = 0
 box_size = 1e-6
-hole_size = box_size / 2
+hole_size = box_size  /2.
 hole = (box_size/2-hole_size/2, box_size/2+hole_size/2)
 dim = 3
 
@@ -88,6 +88,7 @@ for t in xrange(n):
 
 force_on_lower_wall = momentum_neg_z / (stop-start)
 force_up = gained_momentum / (stop-start)
+dpdt = gained_momentum / float(N)
 
 fuel_loss_per_box = outside_count * m
 force_wanted = 35200

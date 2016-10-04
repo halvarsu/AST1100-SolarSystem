@@ -7,6 +7,7 @@ Description: Given distance to planets with known positions, finds position
 of satelite
 """
 
+import matplotlib.pyplot as plt
 import numpy as np
 time = 0
 norm = np.linalg.norm
@@ -20,7 +21,6 @@ r_s = norm(pos)
 theta = np.linspace(0,2*np.pi, 10000)
 circle = r_s* np.array((np.sin(theta), np.cos(theta)))
 plt.plot(circle[0], circle[1],color = 'k')
-
 
 for i in range(n):
     x0 = planetPos[i,0]

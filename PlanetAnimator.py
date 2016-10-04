@@ -34,7 +34,7 @@ class PlanetAnimator(MySolarSystem):
 
     """Docstring for PlanetAnimator. """
 
-    def __init__(self, years=0):
+    def __init__(self, seed, years=0):
         MySolarSystem.__init__(self, seed)
         """TODO: to be defined1."""
         self.years = years
@@ -120,7 +120,7 @@ class PlanetAnimator(MySolarSystem):
 
 
 if __name__ == "__main__":
-    pa = PlanetAnimator()
+    pa = PlanetAnimator(87464)
     pa.load_files()
     pa.animate()
 
