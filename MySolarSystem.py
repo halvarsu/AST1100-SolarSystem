@@ -4,14 +4,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+ang2pix = AST1100SolarSystem.ang2pix
 
 class MySolarSystem(AST1100SolarSystem):
-
     """A subclass of AST1100SolarSystem made for easier implementation of
     own methods using data from the previous mentioned module. """
 
     def __init__(self, seed):
-        """TODO: to be defined1.
+        """TODO: 
 
         :seed: The seed to be initialized in AST1100SolarSystem
 
@@ -183,11 +183,82 @@ class MySolarSystem(AST1100SolarSystem):
         return (self.posFunction(t+dt) - self.posFunction(t))/dt
 
     def getVelocityFunction(self):
+        'velfunction needs posfunction to function'
         if not hasattr(self, 'posFunction'):
             self.getPositionsFunction()
         if not hasattr(self, 'velFunction'):
             print "Something is wrong, velFunction not implemented!"
         return self.velFunction
+
+    def getKeplerianElements(self, new_values = False):
+        '''Returns the six orbital elements needed by PyKEP for
+        instantiation of planets. The elements are
+        a : Semi major axis
+        e : Eccentricity
+        i : Inclination  ->  0  (2-dim)
+        W : Longitude of ascending node -> 0 (2-dim)
+        w : Argument of periapsis
+        M : Mean anomaly 
+        Returned array has shape (6, numberOfPlanets)'''
+
+        a = self.a  
+        e = self.e
+        inc = np.zeros(self.numberOfPlanets)
+        W = np.zeros(self.numberOfPlanets)
+        try:
+            if hasattr(self, 'w'):
+                w = self.w
+            elif new_values:
+                raise IOError
+            else:
+                w = np.load('data/orbitalData/argumentOfPeriapsis.npy')
+        except IOError:
+            print "Creating new values"
+            pos = self.getExactPos()
+            r = np.linalg.norm(pos, axis = 0)
+            index_periapsis = np.argmin(r, axis = 1)
+            pos_periapsis   = pos[:,:,index_periapsis]
+            b = a*np.sqrt(1-e**2)
+            w = np.zeros(self.numberOfPlanets)
+            for i in range(len(w)):
+                print a[i], b[i], pos_periapsis[0,i,i], pos_periapsis[1,i,i]
+                w[i] =\
+                np.arctan((a[i]*pos_periapsis[1,i,i])/(b[i]*pos_periapsis[0,i,i]))
+                # actan only gives values for [-pi/2 to pi/2]
+                w[i] += np.pi if pos_periapsis[0,i,i] < 0 else 0
+            np.save('data/orbitalData/argumentOfPeriapsis.npy', w)
+        try:
+            if hasattr(self, 'w'):
+                M = self.M
+            elif new_values:
+                raise IOError
+            else:
+                M = np.load('data/orbitalData/meanAnomaly.npy')
+        except IOError:
+            b = a*np.sqrt(1-e**2)
+            x0 = self.x0; y0 = self.y0
+            M = np.arctan((y0*a)/(x0*b)) - e*y0/b 
+            M -= w
+            M[x0<0] += np.pi
+            np.save('data/orbitalData/meanAnomaly.npy', M)
+
+        self.M = M
+        self.w = w
+        data = np.array((a,e,inc,W,w,M))
+        return data
+
+    def getM(self, t):
+        posFunc = self.getPositionsFunction()
+        a = self.a; e = self.e
+        b = a*np.sqrt(1-e**2)
+        x, y = posFunc(t)
+        M = np.arctan((y*a)/(x*b)) - e*y/b 
+        M -= self.w
+        M[x<0] += np.pi
+        return M
+
+
+
 
 
     def find_hohmann_params(self, A=0, B=1):
@@ -226,7 +297,6 @@ class MySolarSystem(AST1100SolarSystem):
                 "transferTime":transferTime,
                 "v_transfer_A":v_transfer_A,
                 "v_transfer_B":v_transfer_B}
-        
         
 
 

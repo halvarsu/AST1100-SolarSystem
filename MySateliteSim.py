@@ -6,7 +6,7 @@ import seaborn as sns
 import warnings
 
 
-
+ang2pix = MySolarSystem.ang2pix
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -233,6 +233,7 @@ class MySateliteSim(MySolarSystem):
         plt.plot(x,y)
         plt.axis('equal')
         plt.show()
+        return rel_r[closest_i]
         
     def saveData(self, fname = ('satPos', 'satVel','satTimes'),
             folder='data'):
