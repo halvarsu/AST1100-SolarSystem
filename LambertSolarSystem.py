@@ -11,7 +11,7 @@ from MySateliteSim import MySateliteSim
 class LambertSolarSystem(MySolarSystem):
 
     """A subclass of MySolarSystem where the module PyKEP is used. One of
-    the uses is optimization of the MGA problem.
+    the potential uses is optimization of the MGA problem.
     """
 
     def __init__(self, seed):
