@@ -298,6 +298,50 @@ class MySolarSystem(AST1100SolarSystem):
                 "v_transfer_A":v_transfer_A,
                 "v_transfer_B":v_transfer_B}
         
+    def projection(self, phi_0, theta_0=np.pi/2):
+        from PIL import Image
+        from numpy import cos, sin, pi, arcsin, arctan, sqrt
+        pi = np.pi; cos = np.cos; sin = np.sin
+        arcsin = np.arcsin; arctan = np.arctan; sqrt = np.sqrt 
+
+        ang2pix = AST1100SolarSystem.ang2pix
+
+        folder = 'data/projections/'
+        inFile = open(folder+'himmelkule.npy', 'rb')
+        celestial_sky = np.load(inFile)
+        inFile.close()
+
+        height = 640 
+        width  = 480 
+
+        fov_p = 2*pi*70/360. #radians
+        fov_t = 2*pi*70/360. #radians
+
+        #for phi_0 in np.linspace(0,2*np.pi, 360):
+        xlim = 2*sin(fov_p/2.)/(1+cos(fov_p/2.)) 
+        ylim = 2*sin(fov_t/2.)/(1+cos(fov_t/2.)) 
+
+        x_pic = np.linspace(-xlim, xlim, width)
+        y_pic = np.linspace(ylim, -ylim, height)
+
+        proj_rgb = np.zeros((height,width,3), dtype='uint8')
+
+        for i,x in enumerate(x_pic):
+            for j,y in enumerate(y_pic):
+                rho = sqrt(x**2 + y**2)
+                c = 2 * arctan(rho/2)
+                if rho == 0:
+                    phi = phi_0
+                    theta = theta_0
+                else:
+                    theta = pi/2 - arcsin(cos(c)*cos(theta_0) + y*sin(c)*sin(theta_0)/rho)
+
+                    phi = phi_0 + arctan(x*sin(c)/(rho*sin(theta_0)*cos(c) -\
+                        y*cos(theta_0)*sin(c)))
+                pix = ang2pix(theta, phi)
+                proj_rgb[j,i,:] = celestial_sky[pix][2:]
+                    
+        return proj_rgb
 
 
         
