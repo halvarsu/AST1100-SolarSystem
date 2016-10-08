@@ -10,28 +10,40 @@ ang2pix = MySolarSystem.ang2pix
 import warnings
 warnings.filterwarnings("ignore")
 
-class MySateliteSim(MySolarSystem):
 
+def rot_matrix(angle):
+    """Provides a two dimensional rotation matrix for a given angle"""
+    c = np.cos(angle)
+    s = np.sin(angle)
+    return np.array((c,-s),(s,c))
+
+
+
+class MySateliteSim(MySolarSystem):
     """This is an implementation of My Solar System designed for sending
     satelites into space"""
     au = 149597870700 # m
     year = int(365.25*24*3600) #s
 
-    def __init__(self, seed):
-        """TODO: to be defined1.
+    def __init__(self, seed): 
+        """
+        On init, creates an instance of MySolarSystem with the seed
+        provided, and loads arrays with planet positions and times. 
+        These are then used to create interpolation functions for 
+        position, velocity and acceleration of the planets.
 
-        :seed: TODO
+        :seed: The seed to be instantiated in MySolarSystem
 
         """
         MySolarSystem.__init__(self, seed)
 
         self._seed = seed
-        self.planetPos = np.load('positionsHomePlanet.npy')
-        self.times = np.load('times.npy')
-        self.posFunc  =  self.getPositionsFunction()
-        self.velFunc  =  self.getVelocityFunction()
-        self.angleFunc =  self.getAngleFunction()
-        self.accelFunc = self.getAccelFunction()
+        self.planetPos  =  np.load('positionsHomePlanet.npy')
+        self.times      =  np.load('times.npy')
+        self.posFunc    =  self.getPositionsFunction()
+        self.velFunc    =  self.getVelocityFunction()
+        self.angleFunc  =  self.getAngleFunction()
+        self.accelFunc  =  self.getAccelFunction()
 
 
     def testVelFunction(self):
@@ -50,59 +62,110 @@ class MySateliteSim(MySolarSystem):
         acc = -G*self.starMass*pos/r**3
 
         planetPositions = self.posFunc(time).T
-
         for i,posPlanet in enumerate(planetPositions):
             rel_pos = pos - posPlanet
             r2 = rel_pos[0]**2 + rel_pos[1]**2
             acc += -G*mass[i]*rel_pos/(r2*np.sqrt(r2))
         return acc
 
-
     def getAccelFunction(self):
         if not hasattr(self, 'accelFunction'):
             self.accelFunction = np.vectorize(self.accelFunc_unvec)
         return self.accelFunction
 
-    def satelite_sim(self, t0 = 0, init_v = 10000, init_angle=1.6*np.pi,
-                    tN = 3, dt_far=1/(50000.), dt_close = 1/(365.25*24*3600),
-                    sec_per_dt_close= 1, start_dist=1000,
-                    start_planet = 0, target_planet = 4, 
-                    first_boost = True, pos0=None, vel0=None,
-                    sec_per_dt_arrival = 1):
-        ''' Init_v in meters per second, t0 in years
-        If not first_boost, then pos0 and vel0 will need to be supplied'''
-        start = t0
-        stop = tN
+    def boost(self, vel, boost, boost_angle):
+        """
+        Applies an instantanious boost at an angle boost_angle at the 
+        vel direction
 
-        dt_close *= sec_per_dt_close
-        dt1 = dt_close 
-        dt2 =  dt_far
-        dt3 = dt_close * sec_per_dt_arrival
-        dt = dt1
-        print 'DT = ',dt
+        :vel:      two dimensional velocity before boost
+        :boost:         magnitude of boost
+        :boost_angle:   angle of boost
+        """
+        direction = vel/np.linalg.norm(vel)
+        boost_direction = np.dot(rot_matrix(boost_angle), direction)
+        new_vel = vel + boost_direction*boost/self.au*self.year
+        return new_vel
+
+    def boost_init(
+            self, pos0, vel0, t0, init_boost = 0, boost_angle = 0,
+            target_planet = 4):
+        self.start = t0
+        self.vel0 = self.boost(vel0, init_boost, boost_angle)
+        self.pos0 = pos0
+        self.start_planet = np.argmin(
+                                np.linalg.norm(self.posFunc(t0),axis=0))
+        self.target_planet = target_planet
+        return self.start_planet, self.vel0
+
+    def launch_init(
+            self, t0 = 0, init_boost = 10000, init_angle = 1.6*np.pi, 
+            start_dist=1000, start_planet = 0, target_planet = 4,
+            ground_launch = True):
+        self.start = t0
+        planetVel0 = self.velFunc(t0)
+        planetPos0 = self.posFunc(t0)
+        planet_angle = np.arctan(
+            planetPos0[1,start_planet]/planetPos0[0,start_planet])
+        if planetPos0[0,start_planet] < 0:
+            planet_angle  += np.pi
+        if ground_launch:
+            sp_vel = planetVel0[:,start_planet]
+            planet_direction = sp_vel/np.linalg.norm(sp_vel)
+            # init_angle should be 0 for a straight launch trajectory:
+            theta = init_angle + planet_angle + np.pi/2 
+            init_pos =  planet_direction * self.radius[start_planet]
+            init_vel = planet_direction *init_boost
+        else:
+            # init_angle important for direction of hyperbolic excess vel
+            theta = init_angle + planet_angle 
+            init_vel = np.array((-init_boost*np.sin(theta),
+                                    init_boost*np.cos(theta)))
+            init_dist = start_dist+self.radius[start_planet]
+            init_pos = np.array((init_dist*np.cos(theta),
+                                 init_dist*np.sin(theta)))
+
+        pos0 = planetPos0.T[start_planet] + init_pos/self.au*1000
+        vel0 = planetVel0.T[start_planet] + init_vel*self.year/self.au
+        self.pos0 = pos0
+        self.vel0 = vel0
+        self.start_planet  = start_planet 
+        self.target_planet = target_planet
+        return self.start_planet, self.vel0
+
+
+    def satelite_sim(
+        self, tN = 4, dt_ip = 1/(50000.), dt_close = 1/(365.25*24*3600), 
+        speed_factor = [1,1,1], *args, **kwargs):
+
+        ''' 
+        Simulates satelite trajectory . There are two options, either a
+        first_launch from planet, or a continuation from a point in space.
+
+        First 
+        continuing from a point in space if first_launch = False.
+        ground_launch
+        The satelite is launched using 
+        Accuracy goes down with higher speed_factor
+        [tN] = years
+        ''' 
+        
+        dt1 = dt_close *speed_factor[0]
+        dt2 = dt_ip    *speed_factor[1]
+        dt3 = dt_close *speed_factor[2]
+        start = self.start
+        stop  = tN
+        max_steps   = (stop-start)/(dt2) + 1500001 
+        
+        time_passed = start
+        dt  = dt1
         dtt = dt*dt
 
-        max_steps = (stop-start)/(dt2) + 1500001
-        print max_steps
+        pos0 = self.pos0
+        vel0 = self.vel0
+        start_planet = self.start_planet
+        target_planet = self.target_planet
 
-        if first_boost:
-            planetVel0 = self.velFunc(t0)
-            planetPos0 = self.posFunc(t0)
-            planet_angle = np.arctan(planetPos0[1,start_planet]/planetPos0[0,start_planet])
-            if planetPos0[0,start_planet] < 0:
-                planet_angle  += np.pi
-            theta = init_angle + planet_angle #launch angle
-
-            init_boost = np.array((-init_v*np.sin(theta),
-                                    init_v*np.cos(theta)))
-            init_dist = start_dist+self.radius[start_planet]
-            init_orbit = np.array((init_dist*np.cos(theta),
-                                    init_dist*np.sin(theta)))
-            pos0 = planetPos0.T[start_planet] + init_orbit/self.au*1000
-            vel0 = planetVel0.T[start_planet] + init_boost*self.year/self.au
-            
-
-        time_passed = t0
 
         times = np.zeros((max_steps+1))
         sat_pos = np.zeros((max_steps+1,2))
@@ -114,10 +177,11 @@ class MySateliteSim(MySolarSystem):
         sat_acc[0] = self.accelFunc(sat_pos[0], time_passed)
         i = 0
         
-        new_argmin = 110
+        prev_closest = 110 #random high value (AU)
         slow = True
         norm = np.linalg.norm
         break_stop = False
+        
 
         while time_passed <= stop:
             if i >= max_steps or break_stop:
@@ -130,6 +194,7 @@ class MySateliteSim(MySolarSystem):
             sat_acc[i+1] = self.accelFunc(sat_pos[i+1], time_passed)
             sat_vel[i+1] = sat_vel[i] + 0.5*(sat_acc[i] + sat_acc[i+1])*dt
 
+            #euler-cromer:
             #sat_vel[i+1] = sat_vel[i] + sat_acc[i]*dt
             #sat_pos[i+1] = sat_pos[i] + sat_vel[i+1]*dt
             #sat_acc[i+1] = self.accelFunc(sat_pos[i+1], time_passed)
@@ -141,18 +206,17 @@ class MySateliteSim(MySolarSystem):
 
                 rel_dist = norm(self.posFunc(time_passed).T-sat_pos[i],axis=1)
 
-                min_value = np.amin(rel_dist)
+                closest = np.amin(rel_dist)
                 min_index = np.argmin(rel_dist)
                 acc_now = norm(sat_acc[i])
                 print "relative dist to closest(%d): %f  acc: %f  t left: %.3f"\
-                        %(min_index,min_value,acc_now, tN-time_passed)
+                        %(min_index,closest,acc_now, tN-time_passed)
 
                 if min_index == target_planet:
-                    if min_value > new_argmin:
-                        print 'found minimum', min_value
+                    if closest > prev_closest:
+                        print 'found minimum', closest
                         break
-                    new_argmin = min_value
-                    
+                    old_closest = closest
                 force_relation = norm(sat_pos[i])*np.sqrt(self.starMass*self.mass)
 
                 if slow:
@@ -269,15 +333,19 @@ if __name__ == "__main__":
     s = MySateliteSim(87464)
     start_time = 14.25 #years
     stop_time = start_time + 3. #years
-    init_vel = 9587#m/s
+    init_boost = 9587#m/s
     angle = 1.67*np.pi #radians
     import time
     sim_start = time.time()
     dt_close = 1/(365.25*24*3600)
     for x in range(3):
-        pos, vel, acc, times= s.satelite_sim(t0=start_time,
-                init_v=init_vel-x,
-                tN = stop_time, init_angle = angle, dt_close = dt_close)
+        s.launch_init(t0 = start_time, 
+                init_boost = init_boost-x,init_angle = angle,
+                ground_launch = True)
+        pos, vel, acc, times= s.satelite_sim(
+            t0=start_time, init_boost=init_boost-x, tN = stop_time, 
+            init_angle = angle, dt_close = dt_close
+        )
         print "length of pos ", pos.shape[0]
         print "Time used on sim: ", time.time() - sim_start,"s"
         norm = np.linalg.norm
