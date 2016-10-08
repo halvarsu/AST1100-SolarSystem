@@ -44,6 +44,7 @@ class MySateliteSim(MySolarSystem):
         self.velFunc    =  self.getVelocityFunction()
         self.angleFunc  =  self.getAngleFunction()
         self.accelFunc  =  self.getAccelFunction()
+        self.initiated  =  False
 
 
     def testVelFunction(self):
@@ -88,20 +89,21 @@ class MySateliteSim(MySolarSystem):
         return new_vel
 
     def boost_init(
-            self, pos0, vel0, t0, init_boost = 0, boost_angle = 0,
-            target_planet = 4):
+            self, pos0, vel0, t0, init_boost = 0, boost_angle = 0):
+        """Sets up satelite position, velocity at boost time, with a given
+        boost applied. 
+        """
+        self.initiated = True
         self.start = t0
         self.vel0 = self.boost(vel0, init_boost, boost_angle)
         self.pos0 = pos0
-        self.start_planet = np.argmin(
-                                np.linalg.norm(self.posFunc(t0),axis=0))
-        self.target_planet = target_planet
-        return self.start_planet, self.vel0
+        self.boost_init = True
 
     def launch_init(
             self, t0 = 0, init_boost = 10000, init_angle = 1.6*np.pi, 
-            start_dist=1000, start_planet = 0, target_planet = 4,
+            start_dist=1000, start_planet = 0, 
             ground_launch = True):
+        self.initiated = True
         self.start = t0
         planetVel0 = self.velFunc(t0)
         planetPos0 = self.posFunc(t0)
@@ -129,14 +131,12 @@ class MySateliteSim(MySolarSystem):
         vel0 = planetVel0.T[start_planet] + init_vel*self.year/self.au
         self.pos0 = pos0
         self.vel0 = vel0
-        self.start_planet  = start_planet 
-        self.target_planet = target_planet
-        return self.start_planet, self.vel0
 
 
     def satelite_sim(
         self, tN = 4, dt_ip = 1/(50000.), dt_close = 1/(365.25*24*3600), 
-        speed_factor = [1,1,1], *args, **kwargs):
+        speed_factor = [1,1,1], target_planet = 4,
+        *args, **kwargs):
 
         ''' 
         Simulates satelite trajectory . There are two options, either a
@@ -150,6 +150,10 @@ class MySateliteSim(MySolarSystem):
         [tN] = years
         ''' 
         
+        if not self.initiated:
+            raise NotImplementedError, \
+                'init method of module not called before launch'
+
         dt1 = dt_close *speed_factor[0]
         dt2 = dt_ip    *speed_factor[1]
         dt3 = dt_close *speed_factor[2]
@@ -163,9 +167,10 @@ class MySateliteSim(MySolarSystem):
 
         pos0 = self.pos0
         vel0 = self.vel0
-        start_planet = self.start_planet
-        target_planet = self.target_planet
-
+        self.start_planet = np.argmin( 
+                np.linalg.norm(self.posFunc(start),axis=0)
+                )
+        self.target_planet = target_planet
 
         times = np.zeros((max_steps+1))
         sat_pos = np.zeros((max_steps+1,2))
@@ -182,7 +187,6 @@ class MySateliteSim(MySolarSystem):
         norm = np.linalg.norm
         break_stop = False
         
-
         while time_passed <= stop:
             if i >= max_steps or break_stop:
                 if not break_stop:
