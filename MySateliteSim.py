@@ -151,8 +151,8 @@ class MySateliteSim(MySolarSystem):
         ''' 
         
         if not self.initiated:
-            raise NotImplementedError, \
-                'init method of module not called before launch'
+            raise NotImplementedError(
+                    'init method of module not called before launch')
 
         dt1 = dt_close *speed_factor[0]
         dt2 = dt_ip    *speed_factor[1]
@@ -253,7 +253,7 @@ class MySateliteSim(MySolarSystem):
         return sat_pos[:i], sat_vel[:i], sat_acc[:i], times[:i]
 
     def load_sim(self, fname, folder):
-        "fname should be list of pos, vel and times"
+        "fname should be list of names of pos, vel and times"
         #filenames = 
         self.sat_pos = np.load( folder + fname[0] )
         self.sat_vel = np.load( folder + fname[1] )

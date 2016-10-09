@@ -190,6 +190,15 @@ class MySolarSystem(AST1100SolarSystem):
             print "Something is wrong, velFunction not implemented!"
         return self.velFunction
 
+    def testVelFunction(self):
+        velFunc= self.getVelocityFunction()
+        exact = np.linalg.norm((self.vx0[0], self.vy0[0]))
+        success = True
+        for i in range(10):
+            test = np.linalg.norm(velFunc(0, 10**-i), axis = 0)[0]
+            print test, abs((test-exact)/exact), "   ", 10**-i
+        print exact
+
     def getKeplerianElements(self, new_values = False):
         '''Returns the six orbital elements needed by PyKEP for
         instantiation of planets. The elements are
@@ -297,6 +306,11 @@ class MySolarSystem(AST1100SolarSystem):
                 "transferTime":transferTime,
                 "v_transfer_A":v_transfer_A,
                 "v_transfer_B":v_transfer_B}
+
+    def get360Projections():
+        self.proj = np.load('all_the_projections.npy')
+        return self.proj
+
         
     def projection(self, phi_0, theta_0=np.pi/2):
         from PIL import Image
@@ -311,11 +325,11 @@ class MySolarSystem(AST1100SolarSystem):
         celestial_sky = np.load(inFile)
         inFile.close()
 
-        height = 640 
-        width  = 480 
+        height = 480
+        width  = 640 
 
-        fov_p = 2*pi*70/360. #radians
-        fov_t = 2*pi*70/360. #radians
+        fov_p = 2*pi*70/360.    #radians
+        fov_t = 2*pi*70/360.    #radians
 
         #for phi_0 in np.linspace(0,2*np.pi, 360):
         xlim = 2*sin(fov_p/2.)/(1+cos(fov_p/2.)) 
