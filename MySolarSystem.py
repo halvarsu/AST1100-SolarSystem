@@ -6,13 +6,49 @@ import seaborn as sns
 
 ang2pix = AST1100SolarSystem.ang2pix
 
+def get_sat_velocity(dl_obs1, dl_obs2):
+    '''Receives the doppler shift of the two reference stars and 
+    returns the velocity of the spacecraft in the reference system 
+    of the home star.
+    Parameters
+    ----------
+    dl_obs1 : float
+        Observed doppler shift of ref star 1 in m
+    dl_obs2 : float
+        Observed doppler shift of ref star 2 in m
+    Returns
+    -------
+    v1, v2 : floats
+        velocity of spacecraft, m/s '''
+
+    c = const.c.value
+    h_alpha = 656.3e-9
+    dl_ref1 = 0.020225790030e-9
+    phi1 = 190.439790
+    dl_ref2 = -0.013132758138e-9
+    phi2 =  118.096595
+    v_refstar1 = c * dl_ref1 / h_alpha 
+    v_refstar2 = c * dl_ref2 / h_alpha
+    v1_obs = c * dl_obs1 / h_alpha 
+    v2_obs = c * dl_obs2 / h_alpha 
+    v_sat1 = v_refstar1 - v1_obs 
+    v_sat2 = v_refstar2 - v2_obs
+
+    phi1_rad = phi1 / 360. *2*np.pi
+    phi2_rad = phi2 / 360. *2*np.pi
+    s1 = np.sin(phi1_rad);  c1 = np.cos(phi1_rad)
+    s2 = np.sin(phi2_rad);  c2 = np.cos(phi2_rad)
+    inv_rel = 1/(np.sin(phi2_rad-phi1_rad))*np.array(((s2, -s1),(-c2,c1)))
+    v1, v2 = np.dot(inv_rel, np.array((v_sat1, v_sat2)))
+    return v1, v2
+
 class MySolarSystem(AST1100SolarSystem):
     """A subclass of AST1100SolarSystem made for easier implementation of
     own methods using data from the previous mentioned module. """
 
-    def __init__(self, seed):
-        """TODO: 
 
+    def __init__(self, seed):
+        """TODO: Rework documentation 
         :seed: The seed to be initialized in AST1100SolarSystem
 
         """
@@ -33,6 +69,24 @@ class MySolarSystem(AST1100SolarSystem):
 
     def simulate(self, years = 8, planet_index = "", res = 10000,
             integrator = 'leapfrog'):
+        '''
+        Simulates the orbits of the planets given by python module
+        AST1100SolarSystem. 
+
+        Parameters
+        ----------
+        years : float
+            Number of years to run simulation
+
+        planet_index : str with comma seperated ints
+            String containing indexes of planets uses.
+
+        res : int
+            Amount of timesteps per year
+
+        integrator : str
+            Integrator to use. Either 'leapfrog' or 'euler cromer'
+        '''
         G = 4*np.pi**2
         n = res*years
         stop = years
@@ -45,12 +99,9 @@ class MySolarSystem(AST1100SolarSystem):
         pos = np.zeros((n+1,2,self.numberOfPlanets))
         vel = np.zeros_like(pos)
         accel = np.zeros_like(pos)
-
         pos[0] = np.array((self.x0, self.y0))
         vel[0] = np.array((self.vx0, self.vy0))
-
         r = np.sqrt(pos[0,0]**2 +pos[0,1]**2)
-
         accel[0] = -G*starMass*pos[0]/r**3
         print "Simulating %d years in %d timesteps"%(years, n)
 
@@ -96,7 +147,6 @@ class MySolarSystem(AST1100SolarSystem):
         else:
             indexes = planets.split(',')
             indexes = np.array([int(i) for i in indexes])
-
         orbits = np.zeros((res, len(indexes)))
         theta = np.linspace(0,2*np.pi,res)
         a_arr = self.a[indexes]
@@ -119,13 +169,26 @@ class MySolarSystem(AST1100SolarSystem):
         '''Plots the orbits of the planets in AST1100SolarSystem given by
         the analytical solutions to the two body problem.
 
-        Variable 'planets' should contain indexes of desirable planets
-        seperated by commas. Empty string = all planets'''
+        Parameters
+        ----------
+
+        planets : str with comma seperated values
+            planets to find orbits of. empty string = all planets
+
+        ax : matplotlib axes
+            Axes to plot the orbits onto.
+
+        plot : bool
+            Whether to plot or not. Equalizes axes.
+
+        color : str
+            color of the orbits
+        '''
+
         res = 250
         x,y= self.analytical_pos(planets, res = res, xy = True)
         if not ax:
             ax = plt.subplot(111)#, projection = 'polar')
-
         ax.scatter(0,0, c='y')
         if color:
             ax.plot(x.T,y.T, c=color)
@@ -133,7 +196,6 @@ class MySolarSystem(AST1100SolarSystem):
             #ax.scatter(x.T[0], y.T[0])
             ax.plot(x.T,y.T)
         #ax.plot(theta, orbits)
-
         if plot:
             plt.axis('equal')
             plt.show()
@@ -142,6 +204,7 @@ class MySolarSystem(AST1100SolarSystem):
             return ax
 
     def getExactPos(self):
+        """returns self.exactPos, loaded from positionsHomePlanet.npy"""
         if not hasattr(self, 'exactPos'):
             exactPos = np.load('positionsHomePlanet.npy')
             self.exactPos = exactPos
@@ -149,6 +212,7 @@ class MySolarSystem(AST1100SolarSystem):
         return self.exactPos
 
     def getTimes(self):
+        """returns self.times, loaded from times.npy"""
         if not hasattr(self,'times'):
             times = np.load('times.npy')
             self.times = times
@@ -161,7 +225,8 @@ class MySolarSystem(AST1100SolarSystem):
         return self.theta, self.orbits_r
 
     def getPositionsFunction(self, planets = '', xy = False):
-        '''  posFunction returns positions as function of time.'''
+        '''returns posFunction, which returns position as function of 
+        time.'''
         if not hasattr(self, 'posFunction'):
             from scipy.interpolate import interp1d
             #from scipy.interpolate import UnivariateSpline
@@ -208,7 +273,10 @@ class MySolarSystem(AST1100SolarSystem):
         W : Longitude of ascending node -> 0 (2-dim)
         w : Argument of periapsis
         M : Mean anomaly 
-        Returned array has shape (6, numberOfPlanets)'''
+        Returned array has shape (6, numberOfPlanets).
+        DISCLAIMER: PyKEP has not produces the right
+        starting points for with data from this method as of today. 
+        Reason unknown. '''
 
         a = self.a  
         e = self.e
@@ -232,7 +300,8 @@ class MySolarSystem(AST1100SolarSystem):
             for i in range(len(w)):
                 print a[i], b[i], pos_periapsis[0,i,i], pos_periapsis[1,i,i]
                 w[i] =\
-                np.arctan((a[i]*pos_periapsis[1,i,i])/(b[i]*pos_periapsis[0,i,i]))
+                np.arctan( (a[i]*pos_periapsis[1,i,i])/(
+                    b[i]*pos_periapsis[0,i,i]))
                 # actan only gives values for [-pi/2 to pi/2]
                 w[i] += np.pi if pos_periapsis[0,i,i] < 0 else 0
             np.save('data/orbitalData/argumentOfPeriapsis.npy', w)
@@ -266,15 +335,81 @@ class MySolarSystem(AST1100SolarSystem):
         M[x<0] += np.pi
         return M
 
+    def initConstants(self):
+        """
+        Initializes 
+        -----------
+        self.c : float
+            the speed of light 
 
+        self.h : float
+            Plancks constant 
 
+        self.k_B : float
+            Boltzmans constant 
+        
+        Returns
+        -------
+        c, h, k_B
+        """
+        if not hasattr(self, 'k_B'):
+            import astropy.constants as const
+            self.c = const.c.value      # Speed of light 
+            self.h = const.h.value      # Plancks constant?
+            self.k_B = const.k_B.value  # Boltzmans constant?
+        return self.c, self.h, self.k_B
 
+    def wavelengthIntensity(self, wl, T = None):
+        """Returns intensity as function of wavelength and temp for a 
+        black body
+        Parameters
+        ----------
+        wl : float or sequence of floats
+            Wavelength
+        T : float
+            Temperature"""
+        if not T:
+            T = self.temperature
+        h, c, k_B = self.initConstants()
+        return 2*h*c**2/wl**5 * 1/(np.exp(h*c/(k_B*T*wl))-1)
+
+    def plotBlackbody(self, T = None):
+        """Assumes a black body star, plots intensity as function of
+        wavelengths and the given temperature.
+        Parameters
+        ----------
+        T : float or sequence of floats
+            Temperature of black body
+
+        Returns
+        -------
+        out : flux. 
+            Flux of black body. Not tested"""
+        if not T:
+            T = self.temperature
+        self.initConstants()
+        wavelengths = np.linspace(1,3000,200)
+        intensity = self.wavelengthIntensity(wavelengths*1e-9, T)
+        plt.plot(wavelengths, intensity)
+        plt.title('T = %d K' %int(T))
+        plt.xlabel('Wavelength $\lambda$ in nm')
+        plt.ylabel('Intensity B($\lambda$)')
+        plt.savefig('figure/wavelength_plot.png')
+        plt.show()
+
+        self.flux = 2*np.pi**5*k**4/(15*h**3*c**2)*T**4
+        print " Flux = %g"% self.flux # not tested properly
+        return self.flux
 
     def find_hohmann_params(self, A=0, B=1):
-        '''returns parameters of the hohmann transfer from planet A to planet B
-        for an approximation of planet orbits as circles
-        
-        : A, B : : Expects B > A
+        ''' WORK IN PROGRESS
+        returns parameters of the hohmann transfer from planet A 
+        to planet B for an approximation of planet orbits as circles.
+
+        Parameters
+        ----------
+        A, B : int
+            Index of planets A and B. Expects B > A
         '''
         pi = np.pi
         posFunction, angleFunction = self.find_functions("%d, %d" %(A,B))
@@ -307,7 +442,7 @@ class MySolarSystem(AST1100SolarSystem):
                 "v_transfer_A":v_transfer_A,
                 "v_transfer_B":v_transfer_B}
 
-    def get360Projections():
+    def get360Projections(self):
         self.proj = np.load('all_the_projections.npy')
         return self.proj
 
@@ -317,7 +452,6 @@ class MySolarSystem(AST1100SolarSystem):
         from numpy import cos, sin, pi, arcsin, arctan, sqrt
         pi = np.pi; cos = np.cos; sin = np.sin
         arcsin = np.arcsin; arctan = np.arctan; sqrt = np.sqrt 
-
         ang2pix = AST1100SolarSystem.ang2pix
 
         folder = 'data/projections/'
@@ -327,17 +461,12 @@ class MySolarSystem(AST1100SolarSystem):
 
         height = 480
         width  = 640 
-
         fov_p = 2*pi*70/360.    #radians
         fov_t = 2*pi*70/360.    #radians
-
-        #for phi_0 in np.linspace(0,2*np.pi, 360):
         xlim = 2*sin(fov_p/2.)/(1+cos(fov_p/2.)) 
         ylim = 2*sin(fov_t/2.)/(1+cos(fov_t/2.)) 
-
         x_pic = np.linspace(-xlim, xlim, width)
         y_pic = np.linspace(ylim, -ylim, height)
-
         proj_rgb = np.zeros((height,width,3), dtype='uint8')
 
         for i,x in enumerate(x_pic):
@@ -348,14 +477,17 @@ class MySolarSystem(AST1100SolarSystem):
                     phi = phi_0
                     theta = theta_0
                 else:
-                    theta = pi/2 - arcsin(cos(c)*cos(theta_0) + y*sin(c)*sin(theta_0)/rho)
-
-                    phi = phi_0 + arctan(x*sin(c)/(rho*sin(theta_0)*cos(c) -\
-                        y*cos(theta_0)*sin(c)))
+                    theta = pi/2-arcsin(
+                                    cos(c)*cos(theta_0) + \
+                                    y*sin(c)*sin(theta_0)/rho)
+                    phi = phi_0 + arctan(
+                                    x*sin(c)/(rho*sin(theta_0)*cos(c) -\
+                                    y*cos(theta_0)*sin(c)))
                 pix = ang2pix(theta, phi)
                 proj_rgb[j,i,:] = celestial_sky[pix][2:]
                     
         return proj_rgb
+
 
 
         

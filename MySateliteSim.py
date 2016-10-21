@@ -187,27 +187,21 @@ class MySateliteSim(MySolarSystem):
         ''' 
         Simulates satelite trajectory . There are two options, either a
         first_launch from planet, or a continuation from a point in space.
-
         Parameters
         ----------
         tN : float
             Number of years to run simulation
-
         dt_ip : float
             Size of interplanetary timesteps
-
         dt_close : float
             Size of near planet timesteps
-
         speed_factor : list of floats, len = 3
             Multiplication factor for the timestep of the  three 
             standard legs of a journey: close to departure planet, between
             planets, close to arrival planet.
-        
         target_planet : int
             index of the planet which will trigger break at closest
             approach
-
         break_close : bool 
             whether to break at closest approach
         ''' 
@@ -257,9 +251,9 @@ class MySateliteSim(MySolarSystem):
                     print "Breaking manually"
                 break
             sat_pos[i+1] = sat_pos[i] + sat_vel[i]*dt + 0.5*sat_acc[i]*dtt
+            #staggered lf: temp_vel = sat_vel[i] +sat_acc[i-1]*0.5*dt
             sat_acc[i+1] = self.accelFunc(sat_pos[i+1], time_passed)
             sat_vel[i+1] = sat_vel[i] + 0.5*(sat_acc[i] + sat_acc[i+1])*dt
-
             #euler-cromer:
             #sat_vel[i+1] = sat_vel[i] + sat_acc[i]*dt
             #sat_pos[i+1] = sat_pos[i] + sat_vel[i+1]*dt
@@ -269,16 +263,13 @@ class MySateliteSim(MySolarSystem):
             times[i+1] = time_passed
             i+=1
             if i%1000 ==0:
-
                 rel_dist = norm(self.posFunc(time_passed).T-sat_pos[i],axis=1)
-
                 closest = np.amin(rel_dist)
                 min_index = np.argmin(rel_dist)
                 acc_now = norm(sat_acc[i])
                 vel_now = norm(sat_vel[i])
                 print "dist to cl(%d): %9f | a%8.2f | v%5.2f | t-left: %6.3f"\
                     %(min_index,closest,acc_now, vel_now, stop-time_passed)
-
                 if min_index == target_planet and break_close:
                     if closest > prev_closest:
                         print 'found minimum', closest
@@ -291,16 +282,17 @@ class MySateliteSim(MySolarSystem):
                     closest planet is as large as force from star times
                     factor k = 2
                     '''
-                    if np.all(rel_dist[min_index]>force_relation[min_index]/2.):
+                    if np.all(rel_dist[min_index] \
+                              > force_relation[min_index]/2.):
                         print "i = ", i
                         print "time: ", time_passed
                         dt = dt2
                         dtt = dt*dt
                         print "dt = ", dt
                         slow = False
-                        
                 else:
-                    if np.any(rel_dist[min_index]<force_relation[min_index]/2.): 
+                    if np.any(rel_dist[min_index] \
+                              < force_relation[min_index]/2.): 
                         dt =  dt3
                         dtt = dt*dt
                         print "dt = ", dt
