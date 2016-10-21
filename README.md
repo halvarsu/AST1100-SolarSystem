@@ -10,8 +10,13 @@ parts/folders.
 ###The whole trip, from planet 0 via planet 4 to planet 5:
 ![Trip overview](https://github.com/halvarsu/SolarSystemAST1100/blob/master/figure/The_trip.png)
 
-###A crude fitting of the CO2 absorption line in the target planet atmosphere:
+###A crude fitting of the CO2 1400nm absorption line in the target planet atmosphere:
 ![Discovery of the CO2 1400 absoption line](https://github.com/halvarsu/SolarSystemAST1100/blob/master/figure/Adaption.png)
+
+###The best fitting (Within limited parameters) of the CO2 1400nm line
+![Discovery of the CO2 1400 absoption line](https://github.com/halvarsu/SolarSystemAST1100/blob/master/figure/CO2_1400.png)
 
 ###Intensity as function of star light wavelengths:
 ![Discovery of the CO2 1400 absoption line](https://github.com/halvarsu/SolarSystemAST1100/blob/master/figure/wavelength_plot.png)
+
+
