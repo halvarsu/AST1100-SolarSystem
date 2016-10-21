@@ -2,13 +2,9 @@
 from MySolarSystem import MySolarSystem
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
-import warnings
 
 
 ang2pix = MySolarSystem.ang2pix
-import warnings
-warnings.filterwarnings("ignore")
 
 
 def rot_matrix(angle):
@@ -17,12 +13,20 @@ def rot_matrix(angle):
     s = np.sin(angle)
     return np.array(((c,-s),(s,c)))
 
+def find_distance(distances, time = 0):
+    '''
+    Finds satelite position from the distance to the planets at a 
+    given time.
+    Parameters
+    ----------
+    distances : list of floats, len x+1
+        Distance to the x first planets and the star. Star should be 
+        last element
+    '''
 
-def find_distance(pos_list, time = 0):
-    r_s = pos_list[-1]
-    rp_list = pos_list[:-1]
+    r_s = distances[-1]
+    rp_list = distances[:-1]
     n = len(rp_list) 
-    print n
     system = m.MySateliteSim(87464)
 
     posFunc = system.getPositionsFunction()
@@ -41,7 +45,6 @@ def find_distance(pos_list, time = 0):
         A = (x0**2 + y0**2 + r_s**2 - rp**2)/(2*x0)
         b = y0/float(x0)
         C = np.sqrt(r_s**2*(b**2+1) - A**2)
-
         y = [(A*b + C)/(b**2+1),(A*b - C)/(b**2+1)]
         x = [A- y_i*b for y_i in y]
         for i in range(2):
@@ -184,12 +187,18 @@ class MySateliteSim(MySolarSystem):
         """
         Applies an instantanious boost at an angle boost_angle at the 
         vel direction
-
-        :vel:           two dimensional velocity before boost
-        :boost:         magnitude of boost
-        :boost_dir:     boost dir, optional. If None, dir of vel is used
-        :boost_angle:   angle of boost from boost_dir
+        Parameters
+        ----------
+        vel : array of two floats           
+            Two dimensional velocity before boost 
+        boost : float or int        
+            Magnitude of boost
+        boost_dir : array of two floats
+            boost dir, optional. If None, dir of vel is used
+        boost_angle : angle
+            angle of boost from boost_dir
         """
+
         direction = vel/np.linalg.norm(vel)
         if hasattr(boost_dir, '__len__'):
             boost_direction = np.dot( rot_matrix(boost_angle), 
@@ -202,13 +211,14 @@ class MySateliteSim(MySolarSystem):
 
 
     def boost_init(
-            self, pos0, vel0, t0, init_boost = 0, boost_angle = 0):
-        """Sets up satelite position and velocity at boost time, 
+            self, pos0, vel0, t0, init_boost = 0, boost_angle = 0,
+            boost_dir = None):
+        """Sets up satelite position pos0 and velocity vel0 at time t0 
         with the given boost applied. 
         """
         self.initiated = True
         self.start = t0
-        self.vel0 = self.boost(vel0, init_boost, boost_angle)
+        self.vel0 = self.boost(vel0, init_boost, boost_angle, boost_dir)
         self.pos0 = pos0
 
     def launch_init(
@@ -216,6 +226,7 @@ class MySateliteSim(MySolarSystem):
             start_dist=1000, start_planet = 0, 
             ground_launch = False):
 
+        """Sets up satelite position relative to another planet"""
         self.initiated = True
         self.start = t0
         self.initFunctions()
@@ -240,7 +251,6 @@ class MySateliteSim(MySolarSystem):
             init_dist = start_dist+self.radius[start_planet]
             init_pos_km = np.array((init_dist*np.cos(theta),
                                     init_dist*np.sin(theta)))
-
         au = float(self.au)
         pos0 = planetPos0.T[start_planet] + init_pos_km/au*1000
         vel0 = planetVel0.T[start_planet] + init_vel*self.year/au

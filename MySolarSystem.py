@@ -188,8 +188,8 @@ class MySolarSystem(AST1100SolarSystem):
         return self.theta, self.orbits_r
 
     def getPositionsFunction(self, planets = '', xy = False):
-        '''returns posFunction, which returns position as function of 
-        time.'''
+        '''Loads and returns posFunction, which gives position of the
+        planets as function of time.'''
         if not hasattr(self, 'posFunction'):
             from scipy.interpolate import interp1d
             #from scipy.interpolate import UnivariateSpline
@@ -200,7 +200,8 @@ class MySolarSystem(AST1100SolarSystem):
         return self.posFunction 
 
     def getAngleFunction(self):
-        '''angleFunction returns positions as function of theta'''
+        '''angleFunction returns positions of the planets as function 
+        of theta'''
         if not hasattr(self, 'angleFunction'):
             from scipy.interpolate import interp1d
             theta, orbits_r = self.getTheta()
@@ -211,17 +212,16 @@ class MySolarSystem(AST1100SolarSystem):
         return (self.posFunction(t+dt) - self.posFunction(t))/dt
 
     def getVelocityFunction(self):
-        'velfunction needs posfunction to function'
+        '''velfunction needs posfunction to function'''
         if not hasattr(self, 'posFunction'):
             self.getPositionsFunction()
         if not hasattr(self, 'velFunction'):
             print "Something is wrong, velFunction not implemented!"
         return self.velFunction
 
-    def testVelFunction(self):
+    def testVelFunctionAccuracy(self):
         velFunc= self.getVelocityFunction()
         exact = np.linalg.norm((self.vx0[0], self.vy0[0]))
-        success = True
         for i in range(10):
             test = np.linalg.norm(velFunc(0, 10**-i), axis = 0)[0]
             print test, abs((test-exact)/exact), "   ", 10**-i
