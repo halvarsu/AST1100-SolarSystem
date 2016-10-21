@@ -8,10 +8,10 @@ priority for the author. The project could also be structured better into
 parts/folders.
 
 ###The whole trip, from planet 0 via planet 4 to planet 5:
-![Trip overview](https://raw.githubusercontent.com/halvarsu/SolarSystemAST1100/figure/The_trip.png)
+![Trip overview](https://github.com/halvarsu/SolarSystemAST1100/blob/master/figure/The_trip.png)
 
 ###A crude fitting of the CO2 absorption line in the target planet atmosphere:
-![Discovery of the CO2 1400 absoption line](https://raw.githubusercontent.com/halvarsu/SolarSystemAST1100/figure/Adaption.png)
+![Discovery of the CO2 1400 absoption line](https://github.com/halvarsu/SolarSystemAST1100/blob/master/figure/Adaption.png)
 
 ###Intensity as function of star light wavelengths:
-![Discovery of the CO2 1400 absoption line](https://raw.githubusercontent.com/halvarsu/SolarSystemAST1100/figure/Adaption.png)
+![Discovery of the CO2 1400 absoption line](https://github.com/halvarsu/SolarSystemAST1100/blob/master/figure/wavelength_plot.png)
