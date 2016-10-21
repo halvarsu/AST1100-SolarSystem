@@ -10,7 +10,25 @@ import matplotlib.pyplot as plt
 
 
 system = MySateliteSim(87464)
-def init_planet(system, planet=0, name = 'home'):
+def init_planet(system, planet = 0, name = 'none'):
+    if name == 'none':
+        name = str(planet)
+    SEC2YEAR = DAY2SEC/float(DAY2YEAR)
+    x0 = system.x0[planet]*AU
+    y0 = system.y0[planet]*AU
+    vx0 = system.vx0[planet]*AU/SEC2YEAR
+    vy0 = system.vy0[planet]*AU/SEC2YEAR
+    mu_star = system.starMass * MU_SUN
+    radius = system.radius[planet] * 1000
+    mu_planet = system.mass[planet] * MU_SUN
+    safe_radius = radius * 1.2
+    planet = pkp.planet.keplerian(
+            epoch(0), np.array((x0,y0,0)), np.array((vx0,vy0,0)),
+            mu_star, mu_planet, radius, safe_radius, name)
+    return planet
+
+
+def init_planet_old2(system, planet=0, name = 'home'):
     a,e,i,W,w,M = system.getKeplerianElements(new_values = True).T[planet]
     mu_star = system.starMass * MU_SUN
     mu_planet = system.mass[planet] * MU_SUN 
@@ -79,5 +97,47 @@ def lambert_plot(t1,t2, A, B):
     plt.show()
     return l
 
+def test_init_and_solve():
+    system = MySateliteSim(87464)
+    year = system.year
+    for x in range(1,3):
+        planet = init_planet(system, planet = x)
+
+        eph = np.array(planet.eph(epoch(0)))
+        print eph/AU
+        print "-------------------------"
+        print  x
+        print "Position:"
+        print "from pykep  x %7.4f  y %7.4f  " %(eph[0,0]/AU, eph[0,1]/AU)
+        print "from module x %7.4f  y %7.4f  " %(system.x0[x], system.y0[x])
+        print "Velocity:"
+        print "from pykep  vx %7.4f  vy %7.4f  " %(eph[1,0]/AU*year,
+                                                   eph[1,1]/AU*year)
+        print "from module vx %7.4f  vy %7.4f  " %(system.vx0[x], system.vy0[x])
+
+    t1 =16.9105290335 
+    t2 =20.6651033379
+    A = 4
+    B = 5
+
+    l = lambert_solve(t1,t2,A,B)
+    lambert_plot(t1,t2,A,B)
+
+def plot_all(t = 0):
+    from mpl_toolkits.mplot3d import Axes3D
+    system = MySateliteSim(87464)
+    fig = plt.figure()
+    axis = fig.gca(projection = "3d")
+    t0 = epoch(t/DAY2YEAR)
+    for x in range(system.numberOfPlanets):
+        Planet = init_planet(system, planet = x)
+        plot_planet(Planet, t0=t0, legend=True, units = AU, ax = axis)
+    plt.show()
+
+
+
+
+
 if __name__ == "__main__":
-    lambert_solve(14.32, 17.32, 0 ,4)
+    #lambert_solve(14.32, 17.32, 0 ,4)
+    plot_all()
