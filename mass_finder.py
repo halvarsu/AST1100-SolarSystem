@@ -40,6 +40,8 @@ def mass_finder(boost, test = False, mass = 1100):
 
     size_per_box =  1e-6
     area = size_per_box **2 * num_boxes
+    np.save('data_dump2', (5000, dpdt, num_boxes, num_p))
+    
 
     if test:
         print "\nA burn time of %d seconds gives the following parameters:\n" %time

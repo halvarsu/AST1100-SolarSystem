@@ -16,39 +16,48 @@ def load_data(filename):
         data.append(float(line))
     return data
 
-try:
-    delta_v = float(sys.argv[1])
-    time =  float(sys.argv[2])
-except IndexError:
-    print "WrongUsageError! usage: python %s delta_v " %sys.argv[0]
-    sys.exit()
+def rocket_eq(delta_v, drymass = 1100):
+    ''' 
+    Returns the fuel mass needed before boost
+    '''
+    print "Loading data from simulated engine..."
+    data = load_data('gasInBox/data_dump.dat')
+    outside_count   = data[0]
+    m               = data[1]
+    #force_up        = data[2]
+    #fuel_per_box    = data[3]
+    #dt              = data[4]
+    gained_momentum = data[5]
 
-print "Loading data from simulated engine..."
-data = load_data('data_dump.dat')
-outside_count   = data[0]
-m               = data[1]
-force_up        = data[2]
-fuel_per_box    = data[3]
-dt              = data[4]
-gained_momentum = data[5]
+    v_e = gained_momentum/(m*outside_count)
+    print v_e / 9.81
 
-v_e = gained_momentum/(m*outside_count)
-force_needed = gained_momentum / dt
-momentum_per_box = outside_count * m / dt
+    print "Calculating..."
+    # To be given: 
+    dry_mass = 1100
+        
+    fuel_mass = dry_mass*np.exp(delta_v/v_e) - dry_mass
 
-print "Calculating..."
-# To be given: 
-dry_mass = 1190
-    
-    
+    print "Satelite mass  : %11d kg"    % dry_mass 
+    print "Delta v needed : %11.2f m/s" % delta_v
+    print "Fuel needed    : %11.2f kg"  % fuel_mass
+    #print "Boxes needed    : %11.2f s"   % boxes
+    return fuel_mass 
 
-fuel_mass = dry_mass*np.exp(delta_v/v_e) - dry_mass
-
-print "Satelite mass  : %11d kg"    % dry_mass 
-print "Delta v needed : %11.2f m/s" % delta_v
-print "Fuel needed    : %11.2f kg"  % fuel_mass
-#print "Boxes needed    : %11.2f s"   % boxes
+def trip_mass_calculator(boosts, initial_mass = 1100):
+    mass = initial_mass
+    for boost in reversed(boosts):
+        mass += rocket_eq(boost, mass)
+    return mass
 
 
 
+if __name__ == "__main__":
+    try:
+        delta_v = float(sys.argv[1])
+        #time =  float(sys.argv[2])
+    except IndexError:
+        print "WrongUsageError! usage: python %s delta_v " %sys.argv[0]
+        sys.exit()
+    rocket_eq(delta_v)
 

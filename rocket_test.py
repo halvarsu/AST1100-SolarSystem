@@ -14,6 +14,15 @@ def test_rocket(num_boxes, boost, dpdt, num_particles_per_sec_one_box,
     system.massNeededCheck(num_boxes, boost, dpdt,
             num_particles_per_sec_one_box, calc_fuel)
 
-
 if __name__ == "__main__":
+    from load_data import load_data
+
+    data = load_data('data_dump.dat')
+    outside_count   = data[0]
+    m               = data[1]
+    force_up        = data[2]
+    fuel_per_box    = data[3]
+    dt              = data[4]
+
+
     test_rocket()

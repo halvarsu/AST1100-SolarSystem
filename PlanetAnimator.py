@@ -68,6 +68,7 @@ class PlanetAnimator(MySolarSystem):
         self.ax.set_xlim([-self.max_dist,self.max_dist])
         self.ax.set_ylim([-self.max_dist,self.max_dist])
         self.ani = FuncAnimation(self.fig, self.update, interval=5)
+
         cid = self.fig.canvas.mpl_connect('key_press_event', self.onpress)
         plt.show()
         if save:
