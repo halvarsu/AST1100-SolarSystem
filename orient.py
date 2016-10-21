@@ -9,41 +9,42 @@ of satelite
 
 import matplotlib.pyplot as plt
 import numpy as np
-time = 0
-norm = np.linalg.norm
-n = 2
-#planetPos = np.array(((10.,6.),(-2.,5.)))#
-planetPos = np.random.random((n,2)) * 10 - 5
-pos = np.array((4.,5.))
-#pos = np.random.random((2)) * 10 - 5
-plt.scatter(pos[0],pos[1], c='y',s=100)
-r_s = norm(pos)
-theta = np.linspace(0,2*np.pi, 10000)
-circle = r_s* np.array((np.sin(theta), np.cos(theta)))
-plt.plot(circle[0], circle[1],color = 'k')
-
-for i in range(n):
-    x0 = planetPos[i,0]
-    y0 = planetPos[i,1]
-    r_p = norm(pos - planetPos[i])
-    print x0, y0
-
-    A = (x0**2 + y0**2 + r_s**2 - r_p**2)/(2*x0)
-    b = y0/float(x0)
-    C = np.sqrt(r_s**2*(b**2+1) - A**2)
-
-    y = [(A*b + C)/(b**2+1),(A*b - C)/(b**2+1)]
-    x = [A- y_i*b for y_i in y]
-    for i in range(2):
-        plt.scatter(x[i],
-                y[i])
-        print "comp", x[i], y[i] 
-        circle = np.array((r_p*np.sin(theta)+x0, r_p*np.cos(theta)+y0))
-        plt.plot(circle[0], circle[1]) 
-        plt.plot((x0,pos[0]),(y0,pos[1]), '--')
-
-        plt.axis('equal')
-        plt.show()
+import MySateliteSim as m
+if __name__ == "__main__":
+    system = m.MySateliteSim(87464)
+    norm = np.linalg.norm
+    posFunc = system.getPositionsFunction()
 
 
+    #time = 4.784784784
+    #time = 0.964020964021
+    #time = 10.499049905
+    planetPos = posFunc(2).T
+    t = np.linspace(0,20, 100000)
+    pP = posFunc(t)[:,0]
+    print pP.shape
+    pN = norm(pP, axis = 0)
+    p_list = np.load('pos.npy')
+    print np.amin(pN- p_list[-1])
+    print np.amax(pN)
 
+    
+    arg =  np.argmin(np.abs(pN- p_list[-1]))
+    sort =np.argsort(np.abs(pN- p_list[-1])) 
+    print t[arg]
+    best_times =  t[sort][:10]
+    print best_times
+
+
+    #import sys
+    #sys.exit()
+    pos = np.random.random((2)) * 20 - 10
+    relpos = planetPos - pos 
+    rel_r = norm(relpos, axis = 1)
+    #p_list = np.append(rel_r, norm(pos))
+    p_list = np.load('pos.npy')
+
+    time = 14.3199999998
+    m.find_distance(p_list, time = time)
+
+    print p_list

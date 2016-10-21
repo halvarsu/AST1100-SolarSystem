@@ -5,43 +5,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 ang2pix = AST1100SolarSystem.ang2pix
-
-def get_sat_velocity(dl_obs1, dl_obs2):
-    '''Receives the doppler shift of the two reference stars and 
-    returns the velocity of the spacecraft in the reference system 
-    of the home star.
-    Parameters
-    ----------
-    dl_obs1 : float
-        Observed doppler shift of ref star 1 in m
-    dl_obs2 : float
-        Observed doppler shift of ref star 2 in m
-    Returns
-    -------
-    v1, v2 : floats
-        velocity of spacecraft, m/s '''
-
-    c = const.c.value
-    h_alpha = 656.3e-9
-    dl_ref1 = 0.020225790030e-9
-    phi1 = 190.439790
-    dl_ref2 = -0.013132758138e-9
-    phi2 =  118.096595
-    v_refstar1 = c * dl_ref1 / h_alpha 
-    v_refstar2 = c * dl_ref2 / h_alpha
-    v1_obs = c * dl_obs1 / h_alpha 
-    v2_obs = c * dl_obs2 / h_alpha 
-    v_sat1 = v_refstar1 - v1_obs 
-    v_sat2 = v_refstar2 - v2_obs
-
-    phi1_rad = phi1 / 360. *2*np.pi
-    phi2_rad = phi2 / 360. *2*np.pi
-    s1 = np.sin(phi1_rad);  c1 = np.cos(phi1_rad)
-    s2 = np.sin(phi2_rad);  c2 = np.cos(phi2_rad)
-    inv_rel = 1/(np.sin(phi2_rad-phi1_rad))*np.array(((s2, -s1),(-c2,c1)))
-    v1, v2 = np.dot(inv_rel, np.array((v_sat1, v_sat2)))
-    return v1, v2
-
 class MySolarSystem(AST1100SolarSystem):
     """A subclass of AST1100SolarSystem made for easier implementation of
     own methods using data from the previous mentioned module. """
