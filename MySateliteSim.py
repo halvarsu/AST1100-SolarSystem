@@ -440,8 +440,8 @@ class MySateliteSim(MySolarSystem):
         y = self.radius[planet] * np.sin(theta)
         km_relpos = 1./1000 * self.au * relpos
         plt.plot(km_relpos[-plot_length:,0], km_relpos[-plot_length:,1])
-        plt.scatter(km_relpos[-1,0],km_relpos[-1,1],c='g')
-        plt.scatter(km_relpos[closest_i,0], km_relpos[closest_i,1])
+        plt.scatter(km_relpos[-1,0],km_relpos[-1,1],s=50,c='g')
+        plt.scatter(km_relpos[closest_i,0], km_relpos[closest_i,1], c='k')
         plt.plot(x,y)
         plt.axis('equal')
         plt.show()
@@ -466,6 +466,131 @@ class MySateliteSim(MySolarSystem):
             np.save(full_name, data[i])
             print "Saved file ", full_name
 
+
+    def dragForce(self, pos, vel):
+        R = self.radius_target_SI
+        r = np.linalg.norm(pos)
+        h =  r - R
+
+        M = self.mass_target_SI
+        G = self.G_SI
+        rho = self.rhoFunc
+        r = np.linalg.norm(pos)
+        rel_vel = vel - self.atmosphere_vel(pos)
+        v = np.linalg.norm(rel_vel)
+        A = self.area
+        C_D = 1
+        return - 0.5*rho(h)*C_D*A*rel_vel*v
+
+    def gravForce(self, pos):
+        M = self.mass_target_SI
+        m = self.sateliteMass
+        G = self.G_SI
+        r = np.linalg.norm(pos)
+        return -pos*M*m*G/r**3
+
+    def atmosphere_vel(self, pos):
+        T = self.period[5]*self.day2sec #s
+        circum = 2*np.pi*np.array((-pos[1],pos[0],0))
+        return circum/T
+
+
+    def orbit_sim(self, tN = 3600., dt = 20.,target_height=70e3):
+        '''
+        tN : float
+            years to run sim
+            
+        dt : float
+            seconds for each timestep
+        '''
+        
+        from scipy.constants import G
+        radius = self.radius[5] * 1000
+        M = self.mass[5] * 1.98855e30
+
+        sendSatelite = False
+        if sendSatelite:
+            t0= 21.3817592525
+            position = (1.68932738, -5.98807047, 0)
+            velocity = (3.16335623,  0.32657798, 0)
+            star_pos0 = np.array(position)
+            star_vel0 = np.array(velocity)
+            posFunc = self.getPositionsFunction(xyz=True)
+            velFunc = self.getVelocityFunction()
+            planetPos = posFunc(t0)
+            planetVel = velFunc(t0)
+            pos0 = (planetPos[:,5] - star_pos0) * self.au 
+            vel0 = (planetVel[:,5] - star_vel0) * self.au / self.year
+        else:
+            pos0 = np.array(( -6582268.62415 ,  -1141336.5617 ,  0 ))
+            vel0 = np.array(( 439.800144275 ,  -2551.96645169 ,  0 ))
+
+        target_orbit = target_height + radius #m
+        rA = np.linalg.norm(pos0)
+        rB = target_orbit
+        at = (rA+rB)/2.  # semi major axis of transfer orbit
+        vA = np.sqrt(G*M*(2./rA - 1./at)) # velocity wanted
+        tTransfer = np.pi*np.sqrt((rA+rB)**3/(8*G*M))
+        self.tOrbit = 2*tTransfer
+        boost = - vel0 + np.array((0,0,vA))
+        vel0 = vel0 + boost
+        print boost
+
+        vB = np.sqrt(G*M/rB)
+        
+        # --------------------------------------
+        start = 0
+        stop  = tN 
+        #raw_input('continue?')
+        n   = int((stop-start)/(dt)+1)
+
+        self.radius_target_SI = radius
+        self.mass_target_SI =  M
+        self.rho0_target = self.rho0[5]
+        self.G_SI = G
+        self.rhoFunc = self.getDensityFunction()
+        m = 1190  #kg
+        self.sateliteMass = m
+        self.area = 15 #6.2 #m^2
+        dragForce = self.dragForce; gravForce = self.gravForce
+        times = np.linspace(start,stop,n+1)
+        pos = np.zeros((n+1,3))
+        vel = np.zeros_like(pos)
+        F_d = np.zeros_like(pos)
+        F_g = np.zeros_like(pos)
+
+        times[0] = start
+        pos[0] = pos0
+        vel[0] = vel0
+        F_d[0] = dragForce(pos[0],vel[0])
+        F_g[0] = gravForce(pos[0])
+        acc =  (F_d[0] + F_g[0] )/m
+
+        print acc
+        for i in range(n):
+            vel[i+1] = vel[i] + acc*dt
+            pos[i+1] = pos[i] + vel[i+1]*dt
+            F_d[i+1] = dragForce(pos[i+1],vel[i+1])
+            F_g[i+1] = gravForce(pos[i+1])
+            acc =  (F_d[i+1] + F_g[i+1] )/m
+            if np.linalg.norm(pos[i+1]) < radius:
+                print "Inside planet"
+                break
+            if i%((n)/100) == 0:
+
+                print "%.1f%%" % (float(1+100*i)/n)
+                #print acc
+                #print F_g[i+1]
+                #print np.linalg.norm(F_d[i+1])
+                #raw_input()
+                
+        self.pos = pos[:i]
+        self.vel = vel[:i]
+        self.F_d = F_d[:i]
+        self.F_g = F_g[:i]
+        self.acc = (F_d[:i] + F_g[:i] )/m
+        self.times = times[:i]
+        return self.pos, self.vel, self.acc, self.times
 
         
 
