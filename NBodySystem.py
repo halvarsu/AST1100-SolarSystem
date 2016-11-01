@@ -14,6 +14,7 @@ class NBodySystem(MySolarSystem):
 
         """
         MySolarSystem.__init__(self, seed)
+        self.data_filenames = 'data/{}NBody200yr{}'
 
         self._seed = seed
             
@@ -50,7 +51,7 @@ class NBodySystem(MySolarSystem):
             accel[i+1] = self.accel_nbody(pos[i+1], mass_array)
             vel[i+1] = vel[i] + 0.5*(accel[i]+accel[i+1])*dt
         self.saveData(times, pos, vel, accel)
-        return pos, accel, times
+        return pos, vel, accel, times
 
     def star_velocity_init(self):
         """ 
@@ -69,6 +70,20 @@ class NBodySystem(MySolarSystem):
             self.star_vy0 -= self.vy0[i]*masses[i]/starMass
             self.star_x0 -=  self.x0[i]*masses[i]/starMass
             self.star_y0 -=  self.y0[i]*masses[i]/starMass
+
+    def loadData(self):
+        self.pos = np.load(self.data_filenames.format('pos','.npy'))
+        self.vel = np.load(self.data_filenames.format('vel','.npy'))
+        self.acc = np.load(self.data_filenames.format('acc','.npy'))
+        self.times = np.load(self.data_filenames.format('times','.npy'))
+        return self.pos, self.vel, self.acc, self.times
+
+
+    def saveData(self, times, pos, vel=None, acc=None):
+        np.save(self.data_filenames.format('pos',''), pos)
+        np.save(self.data_filenames.format('acc',''), acc)
+        np.save(self.data_filenames.format('vel',''), vel)
+        np.save(self.data_filenames.format('times',''), times)
 
 
     def accel_nbody(self,pos,mass):
