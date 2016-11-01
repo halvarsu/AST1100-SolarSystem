@@ -41,10 +41,15 @@ if 0:
     plt.axis('equal')
     plot_max = max(system.a +1)
     plt.axis([-plot_max,plot_max,-plot_max,plot_max])
-
     plt.plot(pos[:,0], pos[:,1])
     plt.show()
 
+if 1:
+    plt.axis('equal')
+    plt.plot(pos[:,0,-1], pos[:,1,-1])
+    plt.title('Star movement over %d years' %years)
+    plt.savefig('figure/starMovement.png')
+    plt.show()
 
 if 0:
     fig, axes = plt.subplots(3, sharex=True)
@@ -60,27 +65,28 @@ if 0:
     plt.savefig('figure/nBodyStar.png')
     plt.show()
 
-ax = plt.subplot(111)
-v_star = np.zeros((len(vel),3))
-v_star[:,:2] = vel[:,:,-1]
-i = np.pi/4
-v_pec = 2 #AU/yr
-los = np.pi/4
-uvec = np.array((np.cos(i)*np.cos(los),np.cos(i)*np.sin(los),np.sin(i)))
-v_rstar = np.einsum('ij,j->i',v_star,uvec)
+if 0:
+    ax = plt.subplot(111)
+    v_star = np.zeros((len(vel),3))
+    v_star[:,:2] = vel[:,:,-1]
+    i = np.pi/4
+    v_pec = 2 #AU/yr
+    los = np.pi/4
+    uvec = np.array((np.cos(i)*np.cos(los),np.cos(i)*np.sin(los),np.sin(i)))
+    v_rstar = np.einsum('ij,j->i',v_star,uvec)
 
 
-mu = 0; sigma = 0.2*np.max(np.abs(vel[:,0,-1]))
-noise = np.random.normal(mu,sigma,len(times))
+    mu = 0; sigma = 0.2*np.max(np.abs(vel[:,0,-1]))
+    noise = np.random.normal(mu,sigma,len(times))
 
-ax.plot(times, v_rstar +v_pec+ noise,linewidth=0.07)
-ax.set_title('$i=\pi/4$, $v_{pec} = 2 \\frac{AU}{yr}$,'\
-        ' $\\theta=\pi/4$ ',fontsize = 14)
+    ax.plot(times, v_rstar +v_pec+ noise,linewidth=0.07)
+    ax.set_title('$i=\pi/4$, $v_{pec} = 2 \\frac{AU}{yr}$,'\
+            ' $\\theta=\pi/4$ ',fontsize = 14)
 
-ax.set_xlabel('years', fontsize=12)
-ax.set_ylabel('Peculiar velocity $v_{r*}$', fontsize = 12)
+    ax.set_xlabel('years', fontsize=12)
+    ax.set_ylabel('Peculiar velocity $v_{r*}$', fontsize = 12)
 
-plt.savefig('figure/starVelWithNoise.png')
-plt.show()
+    plt.savefig('figure/starVelWithNoise.png')
+    plt.show()
 
 
