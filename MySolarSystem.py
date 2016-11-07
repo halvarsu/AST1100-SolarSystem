@@ -4,32 +4,31 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+def load_engine_data(filename):
+    infile = open(filename, 'r')
+    lines = infile.readlines()
+    data = [int(lines[0])] # first line, outside_count
+    for line in lines[1:]:
+        data.append(float(line))
+    return data
+
 ang2pix = AST1100SolarSystem.ang2pix
+
 class MySolarSystem(AST1100SolarSystem):
     """A subclass of AST1100SolarSystem made for easier implementation of
     own methods using data from the previous mentioned module. """
 
+    au = 149597870700 # m
+    year = int(365.25*24*3600) #s
+    day2sec = float(24*3600) #s
 
     def __init__(self, seed):
         """TODO: Rework documentation 
         :seed: The seed to be initialized in AST1100SolarSystem
-
         """
         AST1100SolarSystem.__init__(self, seed)
 
         self._seed = seed
-    def planet_plotter(self,positions, years, fig=None, ax = None):
-        if not ax:
-            fig, ax = plt.subplots()
-        n = len(positions)
-        print positions.shape
-        ax.plot(positions[:,0,:], positions[:,1,:])
-        # (N, 7, 2)
-        colors = np.linspace(0,1,years+1)
-        ax.scatter(positions[:,0,:][::n/years],
-                positions[:,1,:][::n/years])#, c = colors)
-        return fig, ax
-
     def simulate(self, years = 8, planet_index = "", res = 10000,
             integrator = 'leapfrog'):
         '''
@@ -69,19 +68,19 @@ class MySolarSystem(AST1100SolarSystem):
         print "Simulating %d years in %d timesteps"%(years, n)
 
         if integrator == 'leapfrog':
+            print "JEA"
             for i in xrange(n):
                 if i%(n/100) == 0:
                     print 100*i/float(n)
-                r = np.sqrt(pos[i][0]**2 + pos[i][1]**2)
-                pos[i+1] = pos[i] + vel[i]*dt + accel[i]*dt**2
-                accel[i+1] = -G*starMass*pos[i]/r**3
+                r = np.linalg.norm(pos[i],axis=0)
+                pos[i+1] = pos[i] + vel[i]*dt + 0.5*accel[i]*dt**2
+                accel[i+1] = -G*starMass*pos[i+1]/r**3
                 vel[i+1] = vel[i] + 0.5*(accel[i]+accel[i+1])*dt
-
         elif integrator == 'euler_cromer':
             for i in range(n): 
                 if i%(n/100) == 0:
                     print 100*i/float(n)
-                r = np.sqrt(pos[i][0]**2 + pos[i][1]**2)
+                r = np.linalg.norm(pos[i],axis=0)
                 accel[i] = -G*starMass*pos[i]/r**3
                 vel[i+1] = vel[i] + accel[i] * dt
                 pos[i+1] = pos[i] + vel[i+1] * dt
@@ -91,7 +90,7 @@ class MySolarSystem(AST1100SolarSystem):
             import sys
             sys.exit(1)
         self.saveData(times, pos, vel, accel)
-        return pos, accel, times
+        return pos, vel, accel, times
 
 
     def saveData(self, times, pos, vel=None, accel=None):
@@ -181,20 +180,60 @@ class MySolarSystem(AST1100SolarSystem):
             self.times = times
             return self.times
         return self.times
+        folder = 'data/atmosphericData/density'
+        folder = 'data/atmosphericData/density'
 
     def getTheta(self):
         if not hasattr(self, 'theta') or not hasattr(self,'orbits_r'):
             self.theta, self.orbits_r = self.analytical_pos()
         return self.theta, self.orbits_r
 
-    def getPositionsFunction(self, planets = '', xy = False):
+    def getDensityFunction(self):
+        if not hasattr(self, 'angleFunction'):
+            from scipy.interpolate import interp1d
+            folder = 'data/atmosphericData/density'
+            h = np.load(folder+'height.npy')
+            rho = np.load(folder+'density.npy')
+            self.densityFunc = interp1d(h, rho, bounds_error = False, 
+                                        fill_value = 0)
+        return self.densityFunc
+
+    def getPressureFunction(self):
+        if not hasattr(self, 'angleFunction'):
+            from scipy.interpolate import interp1d
+            folder = 'data/atmosphericData/density'
+            h = np.load(folder+'height.npy')
+            P = np.load(folder+'pressure.npy')
+            self.pressureFunc = interp1d(h, P, bounds_error = False, 
+                                         fill_value = 0)
+        return self.pressureFunc
+
+    def getTemperatureFunction(self):
+        if not hasattr(self, 'angleFunction'):
+            from scipy.interpolate import interp1d
+            folder = 'data/atmosphericData/density'
+            h = np.load(folder+'height.npy')
+            T = np.load(folder+'temperature.npy')
+            self.tempFunc = interp1d(h, T, bounds_error = False, 
+                                     fill_value = 130)
+        return self.tempFunc
+
+
+    def getPositionsFunction(self, planets = '', xyz = False, 
+                             force_new=False):
         '''Loads and returns posFunction, which gives position of the
         planets as function of time.'''
-        if not hasattr(self, 'posFunction'):
+        if not hasattr(self, 'posFunction') or force_new:
             from scipy.interpolate import interp1d
             #from scipy.interpolate import UnivariateSpline
-            planetPos   = self.getExactPos()
-            times    = self.getTimes()
+            if xyz:
+                planetPos2d = self.getExactPos()
+                s = planetPos2d.shape
+                planetPos = np.zeros((3,s[1],s[2]))
+                planetPos[:-1,:,:] = planetPos2d
+            else:
+                planetPos = self.getExactPos()
+            times = self.getTimes()
             self.posFunction = interp1d(times[:-1], planetPos)
             #self.posFunction = UnivariateSpline(times[:-1], planetPos)
         return self.posFunction 
@@ -353,6 +392,7 @@ class MySolarSystem(AST1100SolarSystem):
         self.initConstants()
         wavelengths = np.linspace(1,3000,200)
         intensity = self.wavelengthIntensity(wavelengths*1e-9, T)
+
         plt.plot(wavelengths, intensity)
         plt.title('T = %d K' %int(T))
         plt.xlabel('Wavelength $\lambda$ in nm')
@@ -451,9 +491,70 @@ class MySolarSystem(AST1100SolarSystem):
                     
         return proj_rgb
 
+    def getPlanetTemp(self):
+        T_star = self.temperature
+        r = self.a * self.au
+        R_star = self.starRadius * 1000
+        self.planetTemperature = T_star*np.sqrt(R_star/(np.sqrt(2)*r))
+        return self.planetTemperature
 
 
-        
+    def pressure_solver(self):
+        from scipy.constants import m_p, m_e, k, G
+        import matplotlib.pyplot as plt
+
+        sunMass = 1.989e30
+        mu = 38
+        m_H = m_p + m_e
+        r_p = self.radius[5] * 1000
+        M = self.mass[5] * sunMass
+
+        rho0 = self.rho0[5] 
+        T0 = self.getPlanetTemp()[5]
+        print T0
+        P0 = rho0 * k * T0 / (mu * m_H)
+        gamma = 1.4
+        beta = P0**(1-gamma)*T0**gamma
+        n = 300000
+
+        r = np.linspace(r_p,r_p+250000,n)
+        P = np.zeros(n)
+        rho = np.zeros_like(P)
+        T = np.zeros_like(P)
+        P[0] = P0
+        rho[0] = rho0
+        T[0] = T0
+
+        dr = r[1] - r[0]
+        i= 0
+        tol = 1e-7
+        while P[i] > P0*tol:
+            if i >= (n-1):
+                print "Breaking early"
+                break
+            P[i+1] = P[i] - rho[i]*G*M/r[i]**2*dr
+            if T[i] > T0/2:
+                T[i+1] = beta**(1./gamma)/P[i+1]**((1-gamma)/gamma)
+            else:
+                T[i+1] = T[i]
+            rho[i+1] = P[i+1]*mu*m_H/(k*T[i+1])
+            i += 1
+
+        plt.plot(r[:i]-r_p, rho[:i])
+        plt.title('Density')
+        plt.xlabel('Height [m]')
+        plt.ylabel('density $\\rho$ [kg/m^3]')
+
+        plt.show()
+        folder = 'data/atmosphericData/density'
+        np.save(folder+'height', r[:i] - r_p)
+        np.save(folder+'density', rho[:i])
+        np.save(folder+'pressure', P[:i])
+        np.save(folder+'temperature', T[:i])
+
+
+
+
 if __name__ == "__main__":
     ax = plt.subplot(111)
     seed =  87464 #adam:20776# fredrik:81995
