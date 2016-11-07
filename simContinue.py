@@ -13,18 +13,6 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 
 
-def rot_matrix(angle):
-    c = np.cos(angle)
-    s = np.sin(angle)
-    return np.array((c,-s),(s,c))
-
-def boost(velocity, boost, boost_angle):
-    direction = velocity/np.linalg.norm(velocity)
-    boost_direction = np.dot(rot_matrix(boost_angle), direction)
-    new_vel = vCl + boost_direction*boost/system.au*system.year
-    return new_vel
-
-
 
 system = MySateliteSim(87464)
 au = system.au
@@ -68,17 +56,19 @@ for x in range(11):
     print "relpos at closest approach", relposCl
     print "angle at closest approach", aCl
     
-    vel0 = boost(vCl, 0, np.pi/6)
-    pos0 = pCl 
+    boost = 0
+    angle = 0
     sim_length = 6
     
     dt_far = 1/(50000.)
     print "---------------------------------------------"
     print "continuing the launch ", launch_v
-    psim, vsim, asim, tsim = system.satelite_sim(t0 = tCl, 
-            tN = tCl+sim_length, start_planet=4, target_planet =5,
-            vel0 = vel0, pos0 = pos0, first_boost = False,
-            dt_far=dt_far, sec_per_dt_close = 5)
+    system.boost_init(pos0, vel0, t0, init_boost = boost, 
+            boost_angle = angle)
+    psim, vsim, asim, tsim = system.satelite_sim(
+            t0 = tCl, tN = tCl+sim_length, start_planet=4, 
+            target_planet =5, vel0 = vel0, pos0 = pos0, 
+            first_boost = False, dt_far=dt_far, sec_per_dt_close = 5)
     filenames = ['%s%d' %(name,launch_v) for name in ('pos','vel','times')]
     system.saveData(fname = filenames, folder = 'postGAdata')
 #system.plot()

@@ -25,7 +25,6 @@ class NBodySystem(MySolarSystem):
         stop = years
         dt = stop/float(n+1)
 
-
         times = np.linspace(0,stop,n+1)
         pos = np.zeros((n+1,2,numOfBodies))
         vel = np.zeros_like(pos)

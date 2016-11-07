@@ -6,6 +6,17 @@ import matplotlib.pyplot as plt
 
 ang2pix = MySolarSystem.ang2pix
 
+def rotMatrix3d(a, rot_axis):
+    '''Provides a three dimensional rotation matrix for a given angle
+    a around axis rot_axix'''
+    u,v,w = rot_axis/np.linalg.norm(rot_axis)
+    uuT = np.array(((u**2,u*v,u*w),(u*v, v**2,v*w),(u*w,v*w,w**2)))
+    uMat = np.array(((0,-w, u),(w,0,-v),(-v,u,0)))
+    I = np.eye(3)
+    c = np.cos(a); s = np.sin(a)
+    return c*I + s*uMat + (1-c)*uuT
+    
+
 
 def rot_matrix(angle):
     """Provides a two dimensional rotation matrix for a given angle"""
@@ -27,7 +38,7 @@ def find_distance(distances, time = 0):
     r_s = distances[-1]
     rp_list = distances[:-1]
     n = len(rp_list) 
-    system = m.MySateliteSim(87464)
+    system = MySateliteSim(87464)
 
     posFunc = system.getPositionsFunction()
     planetPos = posFunc(time).T
@@ -183,7 +194,7 @@ class MySateliteSim(MySolarSystem):
         assert success, "mismatch between calculated and exact degrees"
 
 
-    def boost(self, vel, boost, boost_angle=0, boost_dir = None):
+    def boost(self, vel, boost, boost_angle=0, boost_dir = None, SI=False):
         """
         Applies an instantanious boost at an angle boost_angle at the 
         vel direction
@@ -203,10 +214,15 @@ class MySateliteSim(MySolarSystem):
         if hasattr(boost_dir, '__len__'):
             boost_direction = np.dot( rot_matrix(boost_angle), 
                                       np.array(boost_dir) )
+        elif boost_angle == 0:
+            boost_direction = vel/np.linalg.norm(vel)
         else:
             boost_direction = np.dot( rot_matrix(boost_angle), 
                                       direction )
-        new_vel = vel + boost_direction*boost/float(self.au)*self.year
+        if not SI:
+            new_vel = vel + boost_direction*boost/float(self.au)*self.year
+        else:
+            new_vel = vel + boost_direction*boost
         return new_vel
 
 
@@ -467,27 +483,34 @@ class MySateliteSim(MySolarSystem):
             print "Saved file ", full_name
 
 
-    def dragForce(self, pos, vel):
+    def dragForce(self, pos, vel, r):
         R = self.radius_target_SI
-        r = np.linalg.norm(pos)
         h =  r - R
 
         M = self.mass_target_SI
         G = self.G_SI
         rho = self.rhoFunc
-        r = np.linalg.norm(pos)
         rel_vel = vel - self.atmosphere_vel(pos)
         v = np.linalg.norm(rel_vel)
         A = self.area
         C_D = 1
         return - 0.5*rho(h)*C_D*A*rel_vel*v
 
-    def gravForce(self, pos):
+    def gravForce(self, rvec, r):
         M = self.mass_target_SI
         m = self.sateliteMass
         G = self.G_SI
-        r = np.linalg.norm(pos)
-        return -pos*M*m*G/r**3
+        return -rvec*M*m*G/r**2
+
+    def boostForce(self, r):
+        h = r - self.radius_target_SI
+        if False:# and self.engaged or h < self.h_engage :
+            if not self.engaged:
+                print "Engaging boosters!"
+                self.engaged = True
+            return self.boost_force
+        else:
+            return 0
 
     def atmosphere_vel(self, pos):
         T = self.period[5]*self.day2sec #s
@@ -495,7 +518,7 @@ class MySateliteSim(MySolarSystem):
         return circum/T
 
 
-    def orbit_sim(self, tN = 3600., dt = 20.,target_height=70e3):
+    def orbit_sim(self, tN = 3600., dt = 20.,orbit_height=70e3):
         '''
         tN : float
             years to run sim
@@ -507,34 +530,18 @@ class MySateliteSim(MySolarSystem):
         from scipy.constants import G
         radius = self.radius[5] * 1000
         M = self.mass[5] * 1.98855e30
+        pos0 = np.array(( -6582268.62415 ,  -1141336.5617 ,  0))
+        vel0 = np.array(( 439.800144275 , -2551.96645169 , 0))
 
-        sendSatelite = False
-        if sendSatelite:
-            t0= 21.3817592525
-            position = (1.68932738, -5.98807047, 0)
-            velocity = (3.16335623,  0.32657798, 0)
-            star_pos0 = np.array(position)
-            star_vel0 = np.array(velocity)
-            posFunc = self.getPositionsFunction(xyz=True)
-            velFunc = self.getVelocityFunction()
-            planetPos = posFunc(t0)
-            planetVel = velFunc(t0)
-            pos0 = (planetPos[:,5] - star_pos0) * self.au 
-            vel0 = (planetVel[:,5] - star_vel0) * self.au / self.year
-        else:
-            pos0 = np.array(( -6582268.62415 ,  -1141336.5617 ,  0 ))
-            vel0 = np.array(( 439.800144275 ,  -2551.96645169 ,  0 ))
-
-        target_orbit = target_height + radius #m
+        target_orbit = orbit_height + radius #m
         rA = np.linalg.norm(pos0)
         rB = target_orbit
         at = (rA+rB)/2.  # semi major axis of transfer orbit
         vA = np.sqrt(G*M*(2./rA - 1./at)) # velocity wanted
         tTransfer = np.pi*np.sqrt((rA+rB)**3/(8*G*M))
         self.tOrbit = 2*tTransfer
-        boost = - vel0 + np.array((0,0,vA))
-        vel0 = vel0 + boost
-        print boost
+        init_boost = - vel0 + np.array((0,0,vA))
+        vel0 += init_boost 
 
         vB = np.sqrt(G*M/rB)
         
@@ -551,48 +558,130 @@ class MySateliteSim(MySolarSystem):
         self.rhoFunc = self.getDensityFunction()
         m = 1190  #kg
         self.sateliteMass = m
-        self.area = 15 #6.2 #m^2
+        self.area = 6.2 #m^2
+        # booster
+        self.boost_force = 1000
+        self.h_engage = 1000 #m
+        self.engaged = False
         dragForce = self.dragForce; gravForce = self.gravForce
+        boostForce = self.boostForce
+
         times = np.linspace(start,stop,n+1)
         pos = np.zeros((n+1,3))
         vel = np.zeros_like(pos)
         F_d = np.zeros_like(pos)
         F_g = np.zeros_like(pos)
 
+    
         times[0] = start
         pos[0] = pos0
         vel[0] = vel0
-        F_d[0] = dragForce(pos[0],vel[0])
-        F_g[0] = gravForce(pos[0])
-        acc =  (F_d[0] + F_g[0] )/m
+        rprev = np.linalg.norm(pos[0])
+        rvec = pos[0]/rprev
+        F_d[0] = dragForce(pos[0],vel[0],rprev)
+        F_g[0] = gravForce(rvec,rprev)
+        acc =  (F_d[0] + F_g[0] )/self.sateliteMass
 
         print acc
+        boosted = False
+        circ_burn = True
+        land_burn = True
+        boost_vel = 0; boost_time = 0
+        old_rvec = pos[0]/rprev
+        old_d2burn = 10
+
+        vec2land = np.array(
+           (pos0[0],pos0[1],10000))/np.sqrt((pos0[0]**2+pos0[1]**2+10000**2))
+
         for i in range(n):
             vel[i+1] = vel[i] + acc*dt
             pos[i+1] = pos[i] + vel[i+1]*dt
-            F_d[i+1] = dragForce(pos[i+1],vel[i+1])
-            F_g[i+1] = gravForce(pos[i+1])
-            acc =  (F_d[i+1] + F_g[i+1] )/m
-            if np.linalg.norm(pos[i+1]) < radius:
+            rnext = np.linalg.norm(pos[i+1]) 
+            rvec = pos[i+1]/rnext 
+
+            F_d[i+1] = dragForce(pos[i+1],vel[i+1],rnext)
+            F_g[i+1] = gravForce(rvec, rnext)
+            F_booster = boostForce(rprev) * rvec
+            acc =  (F_d[i+1] + F_g[i+1]+F_booster )/self.sateliteMass
+            d2burn = np.linalg.norm(rvec-(-vec2land))
+            if rnext < radius:
                 print "Inside planet"
                 break
-            if i%((n)/100) == 0:
+            if circ_burn and rnext > rprev:
+                circ_dvel = self.circularize_burn(rnext, vel[i+1])
+                vel[i+1] -= circ_dvel
+                circ_burn = False
+                circ_time = times[i]
+                self.circ_i = i
+                print 'BOOST'
+            if not circ_burn and land_burn and d2burn < old_d2burn and d2burn < 0.0004 :
+                land_dvel = self.launch_lander(rnext, vel[i+1])
+                self.area = 0.3 #m^2
+                self.sateliteMass = 90 #kg
+                vel[i+1] -= land_dvel
+                land_burn = False
+                land_burn_time = times[i]
+                self.land_i = i
+                print "Landing boost!"
 
+            rprev = rnext
+            old_d2burn = d2burn
+
+            if i%((n)/100) == 0:
                 print "%.1f%%" % (float(1+100*i)/n)
                 #print acc
                 #print F_g[i+1]
                 #print np.linalg.norm(F_d[i+1])
                 #raw_input()
-                
+
+        print 'boost ', 1.1, init_boost
+        print "circ burn:"
+        print 'boost ', circ_time, -circ_dvel
+        print "land burn:"
+        print 'launchlander ', land_burn_time, -land_dvel
+        print "land time: ", times[i]
+
         self.pos = pos[:i]
         self.vel = vel[:i]
         self.F_d = F_d[:i]
         self.F_g = F_g[:i]
-        self.acc = (F_d[:i] + F_g[:i] )/m
+        self.acc = (F_d[:i] + F_g[:i] )/self.sateliteMass
         self.times = times[:i]
         return self.pos, self.vel, self.acc, self.times
 
+    def circularize_burn(self, r, vel):
+        M = self.mass_target_SI 
+        G = self.G_SI 
+        v = np.linalg.norm(vel)
+        dv = v - np.sqrt(G*M/r) 
+        return self.boost(vel,dv,0, SI=True) -vel
+
+    def launch_lander(self, r, vel):
+        """Simulates the launch of the lander."""
+        R = self.radius_target_SI
+        aim = R + 75e3
+        M = self.mass_target_SI
+        G = self.G_SI
+        v = np.linalg.norm(vel)
+        at = (r + aim)/2.
+        dv = v - np.sqrt(G*M*(2./r - 1./at))
+        return self.boost(vel, dv,0, SI=True) -vel
         
+
+
+    def horizonVec(self, pos, vel, R = None):
+        '''Returns vector pointing at planet horizon in vel direction for
+        pos and vel relative to planet'''
+        if not R:
+            R = self.radius[5] * 1000
+        r = np.linalg.norm(pos)
+        u_r = pos/r
+        vt= vel*(1-np.dot(vel,u_r)/np.dot(vel,vel))
+        u_vt = vt /np.linalg.norm(vt)
+        rot_axis = np.cross(u_vt,u_r)
+        a = np.arcsin(R/r)
+        rotMat = rotMatrix3d(a, rot_axis)
+        return np.dot(rotMat, -u_r)
 
 # 7.45955363121e-05 collision t14.25, a1.67pi, v9590
 

@@ -2,6 +2,12 @@ import numpy as np
 import random as ran
 from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-d', '--dump_data',action='store_true', default=False,
+                    help='Store the values in data_dump.dat')
+args = parser.parse_args()
 
 
 N = 100000
@@ -120,13 +126,16 @@ print "    fuel use total:              %g kg" %fuel_loss_total
 print "--------------------------------------"
 print "    Fuel use per sec for%dN:    %g kg/s" %(force_wanted,\
         fuel_loss_per_sec)
+#a_hit=hole_size**2*(N/box_size**3)*dt*sigma**2/np.sqrt(2*np.pi*sigma)
+print "    Analytical hit  :            ", a_hit
 
-filename = 'data_dump.dat'
-outfile = open(filename, 'w')
-outdata = (outside_count, m, force_up, fuel_loss_per_box, stop-start,
-                            gained_momentum)
-outstring = [str(item) for item in outdata]
-outfile.write("\n".join(outstring))
+if args.dump_data:
+    filename = 'data_dump.dat'
+    outfile = open(filename, 'w')
+    outdata = (outside_count, m, force_up, fuel_loss_per_box, stop-start,
+                                gained_momentum)
+    outstring = [str(item) for item in outdata]
+    outfile.write("\n".join(outstring))
 
 
 

@@ -10,12 +10,12 @@ spectrum_data = np.load('data/spectrum_seed64_600nm_3000nm.npy')
 wavelengths, spectrum  = spectrum_data.T
 noise = noise_data[:,1]
 
-gases = {'O2':{'lines': [630, 690, 760], 'weight':2*(8+8)},
-         'H20':{'lines': [720, 820, 940], 'weight':(8+8)+2*1},
-         'CO2':{'lines': [1400, 1600], 'weight':(6+6)+2*(8+8)},
-         'CH4':{'lines': [1660, 2200], 'weight':(6+6) + 4*1},
-         'CO':{'lines': [2340], 'weight': (6+6)+(8+8)},
-         'N2O':{'lines': [2870], 'weight':2*(7+7)+(8+8) }}
+gases = {'O2':{'lines': [630, 690, 760], 'weight':32 },
+         'H20':{'lines': [720, 820, 940], 'weight':18 },
+         'CO2':{'lines': [1400, 1600], 'weight': 44},
+         'CH4':{'lines': [1660, 2200], 'weight':16 },
+         'CO':{'lines': [2340], 'weight': 28},
+         'N2O':{'lines': [2870], 'weight': 30}}
 
 res = [300,30,30]
 
@@ -187,20 +187,20 @@ def find_spectral_lines(args):
             data_file = folder+'data_%s_%d%s' %(name, line, iteration)
             ext = '.npy'
             if glob.glob(xhi_file+ext):
-                if args.verbose:
+                if args.verbose == 1:
                     print 'loading existing files:'
                     print '\t-',xhi_file+ext
                     print '\t-',data_file+ext
                 xhi = np.load(xhi_file+ext)
                 data = np.load(data_file+ext)
             else:
-                if args.verbose:
+                if args.verbose == 1:
                     print 'creating and saving ', xhi_file+ext
                 xhi, data = search_for_light(name, line)
                 np.save(xhi_file, xhi)
                 np.save(data_file,data)
             i,j,k = my_argmin(xhi)
-            if args.verbose:
+            if args.verbose == 1:
                 print i, j, k
             l_c = data[0][i]
             F_min = data[1][j]
@@ -224,7 +224,8 @@ if __name__ == "__main__":
             sys.exit()
         elif sys.argv[1] == 'comp':
             xhi = search_for_light()
-            np.save('data/xhi_original', xhi)
+            if raw_input('Save files?(y/N)') == 'y':
+                np.save('data/xhi_original', xhi)
         elif sys.argv[1] == 'analyse':
             raise NotImplementedError, "ERROR"
             xhi = xhiAnalyser()
@@ -236,4 +237,3 @@ if __name__ == "__main__":
     from my_argmin import *
     i,j,k = my_argmin(xhi)
     print i,j,k
-    quick_plot(i,j,k)

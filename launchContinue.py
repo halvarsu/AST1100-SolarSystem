@@ -11,15 +11,19 @@ from MySateliteSim import MySateliteSim
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
+import argparse
 
+parser = argparse.ArgumentParser()
+parser.add_argument('-p', '--part', choices=range(1,7),default=6,type=int)
+args = parser.parse_args()
 
 system = MySateliteSim(87464)
 au = system.au
 
-part = 5
+
 posFunc = system.getPositionsFunction()
 
-if part == 1:
+if args.part == 1:
     archive_txt = 'last_launch.txt'
     Position = (3.60039137872,-0.551200231282)
     Velocity = (1.68787359777, 3.91496135905)
@@ -36,7 +40,7 @@ if part == 1:
     #b60 pi 0.000634121339111 # Too much push out of system
     #b65 too much push
 
-elif part == 2:
+elif args.part == 2:
     archive_txt = 'last_launch2.txt'
     #Position = ( 2.01364712592 ,  4.30981258814  )
     #Velocity = ( -2.28924475191 ,  4.00828391069  )
@@ -60,44 +64,57 @@ elif part == 2:
     # increasing accuracy
     #b647 0.00263887587696
 
-elif part == 3:
+elif args.part == 3:
     archive_txt = 'last_launch3.txt'
-    Position = ( -2.19838073348 , -4.71018628699  )
-    Velocity = ( 2.69474360423 , -2.28188284665  )
+    Position = ( -2.19852605635 , -4.71012963539  )
+    Velocity = ( 2.6946849101 , -2.28194618607  )
     t0 = 20.0660134278
 
     tN = 1.5
     start_planet = -1
     target = 5
     sf = [1,0.5,1]
-    boost_v = 40; boost_a = np.pi/2
+    boost_v = 45; boost_a = np.pi/2
     #boost_v = 0; boost_a = 0
-elif part==4:
+    #v40 a pi/2 0.000607432333933
+    #v45 0.000121742333822               
+elif args.part==4:
     t0 =  20.8568550951
     Position = ( 0.125152282389 , -5.87411880252  )
     Velocity = ( 3.03327034075 , -0.697120054535  )
 
     archive_txt = 'last_launch4.txt'
-
     tN = 1.4
     start_planet = -1
     target = 5
     sf = [1,0.5,1]
     boost_v = 0; boost_a =0
 
-elif part == 5:
+elif args.part == 5:
     archive_txt = 'last_launch5.txt'
+    Position =  (1.68932738, -5.98807047)
+    Velocity =  (3.25026227, -0.17369137)
+    t0 = 21.3817592525
 
-    t0 =  21.3797351158 
-    Position = ( 1.6827096364 ,  -5.98974168242  )
-    Velocity = ( 2.93589944102 ,  0.147034648656  )
-
-    tN = 0.006#21.3818426335 - t0 
+    tN = 0.015/16.05 #0.0099065#0.015/8.025#21.3818426335 - t0 
     start_planet = 5 
     target = 5
     sf = [1,1,1]
-    boost_v = 2407.03; boost_a = np.pi
+    boost_v = 2407.03
+    boost_a = np.pi
 
+elif args.part == 6:
+    archive_txt = 'last_launch6.txt'
+    t0 = 21.3817592526 
+    Position = ( 1.68932736458 ,  -5.98807045114  )
+    Velocity = ( 3.16245857718 ,  0.327102058371  )
+
+    tN = 0.015/16.05 #0.0099065#0.015/8.025#21.3818426335 - t0 
+    start_planet = 5 
+    target = 5
+    sf = [1,1,1]
+    boost_v = 0
+    boost_a = np.pi
 
 pos0 = np.array(Position)
 vel0 = np.array(Velocity)
@@ -131,14 +148,22 @@ pos1, vel1, acc1, times1 = system.satelite_sim(
         tN = tN, speed_factor = sf, target_planet = target,
         break_close = eacp)
 
+np.save('test_pos', pos1)
+np.save('test_times', times1)
 cl, cl_i = system.plot(planet = target, end_at_closest_approach=eacp,
         plot_length = -1)
 print times1[cl_i], times1[-1]
 with open(archive_txt,'w') as outfile:
-    outfile.write('boost: time: ' + str(t0)+' dv:'+ str(delvel))
+    outfile.write('boost: ')
+    outfile.write('\ndv: ' + str(delvel))
+    outfile.write('\npos: '+ str(pos1[0]))
+    outfile.write('\nvel: '+ str(vel1[0]))
+    outfile.write('\nacc: '+ str(acc1[0]))
+    outfile.write('\ntime: '+ str(times1[0]))
     outfile.write('\nAt closest approach: ' )
     outfile.write('\npos: '+ str(pos1[cl_i]))
     outfile.write('\nvel: '+ str(vel1[cl_i]))
     outfile.write('\nacc: '+ str(acc1[cl_i]))
     outfile.write('\ntime: '+ str(times1[cl_i]))
+    outfile.write('\ndist: '+ str(cl))
 print 'Wrote data to ', archive_txt
